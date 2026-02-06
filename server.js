@@ -1,6 +1,8 @@
 // Anonymous Campus Rumor Verification System - Backend Server
-// DEPLOYMENT VERSION: v2.2 - Emergency Deadline Fix
-process.env.DEPLOYMENT_VERSION = 'v2.2-emergency';
+// DEPLOYMENT VERSION: v3.0 - CLEAN API ONLY - NO HTML BULLSHIT
+// FORCE RESTART: Remove all HTML interfaces
+process.env.DEPLOYMENT_VERSION = 'v3.0-clean-api';
+process.env.FORCE_RESTART = 'true';
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -569,6 +571,8 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-console.log('🔥🔥🔥 DEADLINE FIX v2.2 DEPLOYED - EMERGENCY PATCH 🔥🔥🔥');
-console.log('Deployment timestamp:', new Date().toISOString());
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+console.log('�🚀🚀 CLEAN API DEPLOYMENT v3.0 - NO HTML INTERFACE 🚀🚀🚀');
+console.log('🔥 HTML TEST INTERFACE REMOVED - API ONLY 🔥');
+console.log('🎯 DEPLOYMENT TIME:', new Date().toISOString());
+console.log('🌐 FRONTEND URL: https://scriptsorcerer23.github.io/anonymous-campus-rumors/');
+app.listen(PORT, () => console.log(`🚀 Clean API server running on port ${PORT}`));
