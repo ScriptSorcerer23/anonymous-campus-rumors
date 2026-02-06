@@ -5,7 +5,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import { getRumors, getRumorScore } from '../services/api';
 import './Feed.css';
 
-const Feed = ({ userId, onLogout, onNavigate }) => {
+const Feed = ({ userId, onLogout }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('trending');
     const [rumors, setRumors] = useState([]);
@@ -30,6 +30,7 @@ const Feed = ({ userId, onLogout, onNavigate }) => {
                     return {
                         id: rumor.id,
                         content: rumor.content,
+                        creatorKey: rumor.creator_public_key,
                         votes: rumor.vote_count || 0,
                         initialScore: Math.round(scoreData.trust_score),
                         comments: 0,
@@ -92,21 +93,16 @@ const Feed = ({ userId, onLogout, onNavigate }) => {
                 </div>
 
                 <div className="header-right">
-                    <div className="transparency-nav">
-                        <button 
-                            className="nav-btn"
-                            onClick={() => onNavigate && onNavigate('audit')}
-                            title="Public Audit Trail"
+                    <div className="transparency-links">
+                        <a 
+                            href="https://rumor-system-backend.onrender.com/api/audit/log" 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="audit-link"
+                            title="Public Audit Trail - Blockchain-like transparency"
                         >
-                            🔗 Audit
-                        </button>
-                        <button 
-                            className="nav-btn"
-                            onClick={() => onNavigate && onNavigate('reputation')}
-                            title="Reputation Checker"
-                        >
-                            🏆 Reputation
-                        </button>
+                            🔗 Public Ledger
+                        </a>
                     </div>
                     
                     <div className="user-badge">
@@ -160,7 +156,11 @@ const Feed = ({ userId, onLogout, onNavigate }) => {
                         <div className="rumor-list">
                             {getFilteredRumors().length > 0 ? (
                                 getFilteredRumors().map(rumor => (
-                                    <RumorCard key={rumor.id} humor={rumor} />
+                                    <RumorCard 
+                                        key={rumor.id} 
+                                        humor={rumor} 
+                                        onDelete={handleDeleteRumor}
+                                    />
                                 ))
                             ) : (
                                 <div className="empty-state">No rumors in this category yet.</div>

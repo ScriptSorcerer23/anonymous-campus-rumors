@@ -34,12 +34,13 @@
     align-items: center;
     gap: 16px;
 }
-.transparency-nav {
+.transparency-links {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
-.nav-btn {
+.audit-link {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--text-primary);
@@ -49,14 +50,20 @@
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.nav-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+.audit-link:hover {
+    background: rgba(0, 255, 255, 0.2);
     border-color: var(--accent-cyan);
     color: var(--accent-cyan);
     transform: scale(1.05);
+    text-decoration: none;
 }
+
 .user-badge {
     display: flex;
     align-items: center;

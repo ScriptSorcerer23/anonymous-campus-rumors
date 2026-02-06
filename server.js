@@ -499,7 +499,7 @@ app.get('/api/user/:publicKey/reputation', async (req, res) => {
 app.get('/api/rumors', async (req, res) => {
     try {
         const rumors = await db.query(
-            'SELECT r.id, r.content, r.category, r.created_at, r.deadline, COUNT(v.rumor_id) as vote_count FROM rumors r LEFT JOIN votes v ON r.id = v.rumor_id GROUP BY r.id ORDER BY r.created_at DESC'
+            'SELECT r.id, r.content, r.category, r.creator_public_key, r.created_at, r.deadline, COUNT(v.rumor_id) as vote_count FROM rumors r LEFT JOIN votes v ON r.id = v.rumor_id GROUP BY r.id ORDER BY r.created_at DESC'
         );
         res.json(rumors.rows);
     } catch (error) {

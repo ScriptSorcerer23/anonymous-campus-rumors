@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { MessageSquare, Clock, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import CommentsSection from './CommentsSection';
-import { vote as voteAPI, getStoredKeys, getRumorScore } from '../services/api';
+import { vote as voteAPI, getStoredKeys, getRumorScore, deleteRumor } from '../services/api';
 import './RumorCard.css';
 
-const RumorCard = ({ humor, onVote }) => {
+const RumorCard = ({ humor, onVote, onDelete }) => {
     const [localVote, setLocalVote] = useState(null);
     const [showScore, setShowScore] = useState(false);
     const [showComments, setShowComments] = useState(false);
@@ -13,6 +13,7 @@ const RumorCard = ({ humor, onVote }) => {
     const [isExpired, setIsExpired] = useState(humor.isExpired || false);
     const [error, setError] = useState('');
     const [isVoting, setIsVoting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Check expiration on mount
     React.useEffect(() => {
@@ -51,6 +52,35 @@ const RumorCard = ({ humor, onVote }) => {
         } finally {
             setIsVoting(false);
         }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to permanently delete this rumor? This action cannot be undone.')) return;
+        
+        setIsDeleting(true);
+        setError('');
+
+        try {
+            const keys = getStoredKeys();
+            if (!keys) {
+                throw new Error('Please register first');
+            }
+
+            await deleteRumor(keys.publicKey, keys.privateKey, humor.id);
+            
+            onDelete && onDelete(humor.id);
+        } catch (err) {
+            setError(err.message || 'Delete failed');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    // Check if current user is the creator
+    const isOwnRumor = () => {
+        const keys = getStoredKeys();
+        return keys && humor.creatorKey === keys.publicKey;
     };
 
     const getTimeRemaining = () => {
@@ -97,6 +127,26 @@ const RumorCard = ({ humor, onVote }) => {
                     <span className={`rumor-time ${isExpired ? 'expired' : ''}`}>
                         <Clock size={14} /> {getTimeRemaining()}
                     </span>
+                    {isOwnRumor() && (
+                        <button 
+                            className="delete-rumor-btn"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            title="Delete your rumor permanently"
+                            style={{
+                                background: 'rgba(244, 67, 54, 0.2)',
+                                border: '1px solid rgba(244, 67, 54, 0.5)',
+                                color: '#f44336',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                cursor: isDeleting ? 'not-allowed' : 'pointer',
+                                marginLeft: '8px'
+                            }}
+                        >
+                            {isDeleting ? 'Deleting...' : '🗑️ Delete'}
+                        </button>
+                    )}
                 </div>
                 <div className="voter-count">
                     {voteCount} voters

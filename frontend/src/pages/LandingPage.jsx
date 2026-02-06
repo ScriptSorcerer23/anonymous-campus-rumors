@@ -149,6 +149,20 @@ const LandingPage = ({ onLogin }) => {
                 )}
             </div>
 
+            <div className="transparency-info glass-panel">
+                <h3>🔗 Full Transparency</h3>
+                <p>All actions are logged in a public audit trail for blockchain-like transparency.</p>
+                <a 
+                    href="https://rumor-system-backend.onrender.com/api/audit/log" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transparency-link"
+                >
+                    📋 View Public Audit Log
+                </a>
+                <div className="note">See all registrations, submissions, votes, and reputation changes</div>
+            </div>
+
             <footer className="landing-footer">
                 <p>Zero PII Stored. Cryptographically Secured.</p>
             </footer>
