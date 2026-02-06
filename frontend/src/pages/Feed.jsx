@@ -25,8 +25,21 @@ const Feed = ({ userId, onLogout }) => {
             
             // Transform backend data to frontend format
             const transformedRumors = await Promise.all(data.map(async (rumor) => {
+                console.log('Raw rumor from backend:', rumor);
                 try {
                     const scoreData = await getRumorScore(rumor.id);
+                    const deadlineTime = new Date(rumor.deadline).getTime();
+                    const now = Date.now();
+                    
+                    console.log('Date conversion:', {
+                        raw_deadline: rumor.deadline,
+                        parsed_deadline: new Date(rumor.deadline),
+                        deadline_timestamp: deadlineTime,
+                        current_time: now,
+                        diff_ms: deadlineTime - now,
+                        diff_hours: (deadlineTime - now) / (1000 * 60 * 60)
+                    });
+                    
                     return {
                         id: rumor.id,
                         content: rumor.content,
@@ -36,8 +49,8 @@ const Feed = ({ userId, onLogout }) => {
                         comments: 0,
                         commentData: [],
                         timestamp: new Date(rumor.created_at).getTime(),
-                        deadline: new Date(rumor.deadline).getTime(),
-                        isExpired: new Date() > new Date(rumor.deadline)
+                        deadline: deadlineTime,
+                        isExpired: now > deadlineTime
                     };
                 } catch {
                     return {

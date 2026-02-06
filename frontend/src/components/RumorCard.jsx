@@ -80,17 +80,46 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
     // Check if current user is the creator
     const isOwnRumor = () => {
         const keys = getStoredKeys();
+        console.log('Delete button check:', {
+            hasKeys: !!keys,
+            userKey: keys?.publicKey?.slice(0, 10) + '...',
+            creatorKey: humor.creatorKey?.slice(0, 10) + '...',
+            match: keys && humor.creatorKey === keys.publicKey
+        });
         return keys && humor.creatorKey === keys.publicKey;
     };
 
     const getTimeRemaining = () => {
         if (isExpired || !humor.deadline) return "Voting Closed";
         
-        const diff = humor.deadline - Date.now();
+        // Parse deadline properly - handle both timestamp and ISO string
+        let deadlineTime;
+        if (typeof humor.deadline === 'string') {
+            deadlineTime = new Date(humor.deadline).getTime();
+        } else {
+            deadlineTime = humor.deadline;
+        }
+        
+        const now = Date.now();
+        const diff = deadlineTime - now;
+        
+        // Debug logging
+        console.log('Time calc:', {
+            deadline: humor.deadline,
+            deadlineTime,
+            now,
+            diff,
+            diffHours: diff / (1000 * 60 * 60)
+        });
+        
         if (diff < 0) return "Voting Closed";
 
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours === 0) {
+            return `${minutes}m left`;
+        }
         return `${hours}h ${minutes}m left`;
     };
 

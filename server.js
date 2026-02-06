@@ -127,18 +127,19 @@ app.post('/api/rumors', async (req, res) => {
 
         // FR2.1: Calculate deadline based on event type
         let deadline;
-        if (event_type === 'future' && custom_deadline) {
+        if (custom_deadline) {
+            // User provided custom deadline (works for both current and future events)
             deadline = new Date(custom_deadline);
             
-            // Validate future deadline
+            // Validate deadline is in future
             if (deadline <= new Date()) {
-                return res.status(400).json({ error: 'Future event deadline must be in the future' });
+                return res.status(400).json({ error: 'Deadline must be in the future' });
             }
             if (deadline > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
                 return res.status(400).json({ error: 'Deadline cannot be more than 30 days in future' });
             }
         } else {
-            // Current event: auto-assign 3 days (72 hours)
+            // No custom deadline: auto-assign 3 days (72 hours)
             deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         }
 

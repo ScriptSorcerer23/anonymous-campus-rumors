@@ -14,17 +14,23 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
         e.preventDefault();
         if (!content.trim()) return;
 
-        // Validate future event deadline
-        if (eventType === 'future') {
+        // Validate custom deadline if provided
+        if (customDeadline) {
             const deadline = new Date(customDeadline);
             if (deadline <= new Date()) {
-                setError('Future event deadline must be in the future');
+                setError('Deadline must be in the future');
                 return;
             }
             if (deadline > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
                 setError('Deadline cannot be more than 30 days in future');
                 return;
             }
+        }
+
+        // Future events require custom deadline
+        if (eventType === 'future' && !customDeadline) {
+            setError('Future events require a custom deadline');
+            return;
         }
 
         setIsSubmitting(true);
@@ -82,7 +88,7 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                                     onChange={(e) => setEventType(e.target.value)}
                                     style={{marginRight: '8px'}}
                                 />
-                                <strong>Current Event</strong> - Auto-closes in 3 days
+                                <strong>Current Event</strong> - Set custom deadline or auto-close in 3 days
                             </label>
                             
                             <label style={{display: 'flex', alignItems: 'center'}}>
@@ -97,22 +103,25 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                             </label>
                         </div>
 
-                        {eventType === 'future' && (
+                        {(eventType === 'future' || eventType === 'current') && (
                             <div style={{margin: '10px 0'}}>
                                 <label style={{display: 'block', marginBottom: '5px'}}>
-                                    Event Date & Time:
+                                    {eventType === 'future' ? 'Event Date & Time:' : 'Custom Deadline (Optional):'}
                                 </label>
                                 <input 
                                     type="datetime-local" 
                                     value={customDeadline}
                                     onChange={(e) => setCustomDeadline(e.target.value)}
-                                    min={new Date().toISOString().slice(0, 16)}
+                                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} // 1 min from now
                                     max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
                                     style={{width: '100%', padding: '8px'}}
                                     required={eventType === 'future'}
                                 />
                                 <small style={{color: '#666', fontSize: '12px'}}>
-                                    Voting will close at this date/time
+                                    {eventType === 'future' 
+                                        ? 'Voting will close at this date/time'
+                                        : 'Leave empty for automatic 3-day deadline'
+                                    }
                                 </small>
                             </div>
                         )}
