@@ -33,7 +33,7 @@ export const clearKeys = () => {
 };
 
 // Proof of Work
-export const computePoW = async (publicKey, difficulty = 4) => {
+export const computePoW = async (publicKey, difficulty = 5) => {
     const target = '0'.repeat(difficulty);
     let nonce = 0;
 
@@ -80,7 +80,7 @@ export const register = async (publicKey, nonce) => {
     return response.json();
 };
 
-export const submitRumor = async (publicKey, privateKey, content, hoursUntilDeadline = 24) => {
+export const submitRumor = async (publicKey, privateKey, content, eventType = 'current', customDeadline = null) => {
     const message = `SUBMIT:${content}`;
     const signature = signMessage(message, privateKey);
     
@@ -90,7 +90,8 @@ export const submitRumor = async (publicKey, privateKey, content, hoursUntilDead
         body: JSON.stringify({
             creator_public_key: publicKey,
             content,
-            hoursUntilDeadline,
+            event_type: eventType,
+            custom_deadline: customDeadline,
             signature
         })
     });

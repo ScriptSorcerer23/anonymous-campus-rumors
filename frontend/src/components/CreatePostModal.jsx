@@ -5,13 +5,27 @@ import './CreatePostModal.css';
 
 const CreatePostModal = ({ onClose, onSubmit }) => {
     const [content, setContent] = useState('');
-    const [hoursUntilDeadline, setHoursUntilDeadline] = useState(24);
+    const [eventType, setEventType] = useState('current'); // 'current' or 'future'
+    const [customDeadline, setCustomDeadline] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!content.trim()) return;
+
+        // Validate future event deadline
+        if (eventType === 'future') {
+            const deadline = new Date(customDeadline);
+            if (deadline <= new Date()) {
+                setError('Future event deadline must be in the future');
+                return;
+            }
+            if (deadline > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
+                setError('Deadline cannot be more than 30 days in future');
+                return;
+            }
+        }
 
         setIsSubmitting(true);
         setError('');
@@ -22,7 +36,7 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                 throw new Error('No keys found. Please register first.');
             }
 
-            await submitRumor(keys.publicKey, keys.privateKey, content, hoursUntilDeadline);
+            await submitRumor(keys.publicKey, keys.privateKey, content, eventType, customDeadline);
             
             onSubmit({ content, timestamp: Date.now() });
             onClose();
@@ -54,18 +68,54 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                         maxLength={1000}
                     />
 
-                    <div style={{margin: '10px 0'}}>
-                        <label style={{display: 'block', marginBottom: '5px'}}>
-                            Deadline (hours from now):
+                    <div style={{margin: '15px 0'}}>
+                        <label style={{display: 'block', marginBottom: '10px', fontWeight: 'bold'}}>
+                            Event Type:
                         </label>
-                        <input 
-                            type="number" 
-                            value={hoursUntilDeadline}
-                            onChange={(e) => setHoursUntilDeadline(parseInt(e.target.value))}
-                            min="1"
-                            max="720"
-                            style={{width: '100px', padding: '5px'}}
-                        />
+                        
+                        <div style={{margin: '10px 0'}}>
+                            <label style={{display: 'flex', alignItems: 'center', marginBottom: '8px'}}>
+                                <input 
+                                    type="radio" 
+                                    value="current"
+                                    checked={eventType === 'current'}
+                                    onChange={(e) => setEventType(e.target.value)}
+                                    style={{marginRight: '8px'}}
+                                />
+                                <strong>Current Event</strong> - Auto-closes in 3 days
+                            </label>
+                            
+                            <label style={{display: 'flex', alignItems: 'center'}}>
+                                <input 
+                                    type="radio" 
+                                    value="future"
+                                    checked={eventType === 'future'}
+                                    onChange={(e) => setEventType(e.target.value)}
+                                    style={{marginRight: '8px'}}
+                                />
+                                <strong>Future Event</strong> - Custom deadline
+                            </label>
+                        </div>
+
+                        {eventType === 'future' && (
+                            <div style={{margin: '10px 0'}}>
+                                <label style={{display: 'block', marginBottom: '5px'}}>
+                                    Event Date & Time:
+                                </label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={customDeadline}
+                                    onChange={(e) => setCustomDeadline(e.target.value)}
+                                    min={new Date().toISOString().slice(0, 16)}
+                                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
+                                    style={{width: '100%', padding: '8px'}}
+                                    required={eventType === 'future'}
+                                />
+                                <small style={{color: '#666', fontSize: '12px'}}>
+                                    Voting will close at this date/time
+                                </small>
+                            </div>
+                        )}
                     </div>
 
                     <div className="modal-actions">
@@ -74,7 +124,7 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                             <button
                                 type="submit"
                                 className="submit-btn"
-                                disabled={!content.trim() || isSubmitting}
+                                disabled={!content.trim() || isSubmitting || (eventType === 'future' && !customDeadline)}
                             >
                                 {isSubmitting ? 'Signing & Submitting...' : (
                                     <>Submit <Send size={16} /></>

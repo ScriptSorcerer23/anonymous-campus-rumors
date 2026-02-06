@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],  base: '/NUST-Olympiad-26-Hackathon/',
+  plugins: [react()],
+  base: './',
   build: {
     outDir: 'dist'
-  }})
+  }
+})

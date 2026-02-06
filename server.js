@@ -57,9 +57,9 @@ function verifySignature(message, signature, publicKey) {
     }
 }
 
-// Check probation (FR4.1 - 3 day wait)
+// Check probation (FR4.1 - 1 minute wait for testing)
 function isPastProbation(createdAt) {
-    return Date.now() - new Date(createdAt).getTime() >= 3 * 24 * 60 * 60 * 1000;
+    return Date.now() - new Date(createdAt).getTime() >= 1 * 60 * 1000; // 1 minute
 }
 
 // ==================== USER REGISTRATION ====================
@@ -97,7 +97,7 @@ app.post('/api/register', async (req, res) => {
 
         res.json({ 
             success: true, 
-            probation_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+            probation_end: new Date(Date.now() + 1 * 60 * 1000) // 1 minute
         });
     } catch (error) {
         res.status(400).json({ error: error.code === '23505' ? 'Already registered' : 'Registration failed' });
@@ -109,7 +109,7 @@ app.post('/api/register', async (req, res) => {
 // FR2: Rumor Submission
 app.post('/api/rumors', async (req, res) => {
     try {
-        const { content, category, creator_public_key, hoursUntilDeadline = 24, signature } = req.body;
+        const { content, category, creator_public_key, event_type = 'current', custom_deadline, signature } = req.body;
 
         // Validate content length (max 1000 characters)
         if (!content || content.length === 0) {
@@ -124,11 +124,22 @@ app.post('/api/rumors', async (req, res) => {
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // FR2.1: Calculate deadline from hours
-        if (hoursUntilDeadline < 1 || hoursUntilDeadline > 720) {
-            return res.status(400).json({ error: 'Hours until deadline must be between 1 and 720' });
+        // FR2.1: Calculate deadline based on event type
+        let deadline;
+        if (event_type === 'future' && custom_deadline) {
+            deadline = new Date(custom_deadline);
+            
+            // Validate future deadline
+            if (deadline <= new Date()) {
+                return res.status(400).json({ error: 'Future event deadline must be in the future' });
+            }
+            if (deadline > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
+                return res.status(400).json({ error: 'Deadline cannot be more than 30 days in future' });
+            }
+        } else {
+            // Current event: auto-assign 3 days (72 hours)
+            deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         }
-        const deadline = new Date(Date.now() + hoursUntilDeadline * 60 * 60 * 1000);
 
         // FR8.1: Immutable voting window
         const result = await db.query(
