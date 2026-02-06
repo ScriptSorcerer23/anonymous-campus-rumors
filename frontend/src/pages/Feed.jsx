@@ -66,7 +66,6 @@ const Feed = ({ userId, onLogout }) => {
                     initialScore: scoreValue,
                     hasVoted,
                     comments: 0,
-                    commentData: [],
                     timestamp: new Date(rumor.created_at).getTime(),
                     deadline: deadlineTime,
                     isExpired

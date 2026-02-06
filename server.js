@@ -17,12 +17,24 @@ const db = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Test database connection
+// Test database connection and ensure comments table exists
 db.query('SELECT NOW()', (err, res) => {
     if (err) {
-        console.error('❌ Database connection failed:', err.message);
+        console.error('Database connection failed:', err.message);
     } else {
-        console.log('✅ Database connected at:', res.rows[0].now);
+        console.log('Database connected at:', res.rows[0].now);
+        // Auto-create comments table if it doesn't exist
+        db.query(`
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                rumor_id INT REFERENCES rumors(id) ON DELETE CASCADE,
+                commenter_public_key TEXT REFERENCES users(public_key),
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `).then(() => {
+            db.query('CREATE INDEX IF NOT EXISTS idx_comments_rumor ON comments(rumor_id)').catch(() => {});
+        }).catch(e => console.error('Comments table creation error:', e.message));
     }
 });
 
@@ -534,6 +546,63 @@ app.get('/api/rumors/:id', async (req, res) => {
     }
 });
 
+// ==================== COMMENTS ====================
+
+// Get comments for a rumor
+app.get('/api/rumors/:id/comments', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const comments = await db.query(
+            'SELECT id, rumor_id, commenter_public_key, content, created_at FROM comments WHERE rumor_id = $1 ORDER BY created_at ASC',
+            [id]
+        );
+        res.json(comments.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+});
+
+// Post a comment on a rumor
+app.post('/api/rumors/:id/comments', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { commenter_public_key, content, signature } = req.body;
+
+        if (!content || content.trim().length === 0) {
+            return res.status(400).json({ error: 'Comment cannot be empty' });
+        }
+        if (content.length > 500) {
+            return res.status(400).json({ error: 'Comment too long (max 500 characters)' });
+        }
+
+        // Verify signature
+        if (!verifySignature(`COMMENT:${id}:${content}`, signature, commenter_public_key)) {
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
+
+        // Check rumor exists
+        const rumor = await db.query('SELECT id FROM rumors WHERE id = $1', [id]);
+        if (!rumor.rows[0]) {
+            return res.status(404).json({ error: 'Rumor not found' });
+        }
+
+        // Check user exists
+        const user = await db.query('SELECT public_key FROM users WHERE public_key = $1', [commenter_public_key]);
+        if (!user.rows[0]) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const result = await db.query(
+            'INSERT INTO comments (rumor_id, commenter_public_key, content) VALUES ($1, $2, $3) RETURNING id, rumor_id, commenter_public_key, content, created_at',
+            [id, commenter_public_key, content.trim()]
+        );
+
+        res.json({ success: true, comment: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to post comment' });
+    }
+});
+
 // API info endpoint - redirect to proper frontend
 app.get('/', (req, res) => {
     res.json({
@@ -547,6 +616,8 @@ app.get('/', (req, res) => {
             'GET /api/rumors': 'Get all active rumors',
             'POST /api/vote': 'Vote on rumor truthfulness',
             'DELETE /api/rumors/:id': 'Delete own rumor',
+            'GET /api/rumors/:id/comments': 'Get comments for a rumor',
+            'POST /api/rumors/:id/comments': 'Post a comment on a rumor',
             'GET /api/user/:publicKey/reputation': 'Check user reputation'
         },
         message: 'Use the React frontend for the full experience!'

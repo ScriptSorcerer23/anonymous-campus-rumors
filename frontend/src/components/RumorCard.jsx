@@ -14,8 +14,7 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
     const [error, setError] = useState('');
     const [isVoting, setIsVoting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [comments, setComments] = useState(humor.commentData || []);
-    const [commentCount, setCommentCount] = useState((humor.commentData || []).length);
+    const [commentCount, setCommentCount] = useState(humor.comments || 0);
 
     // Check expiration on mount
     React.useEffect(() => {
@@ -248,11 +247,8 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
 
             {showComments && (
                 <CommentsSection 
-                    initialComments={comments} 
-                    onCommentAdded={(newComments) => {
-                        setComments(newComments);
-                        setCommentCount(newComments.length);
-                    }}
+                    rumorId={humor.id}
+                    onCommentCountUpdate={(count) => setCommentCount(count)}
                 />
             )}
         </div>

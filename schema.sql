@@ -53,6 +53,15 @@ CREATE TABLE audit_log (
     timestamp TIMESTAMP DEFAULT NOW()
 );
 
+-- comments table (anonymous discussion on rumors)
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY,
+    rumor_id INT REFERENCES rumors(id) ON DELETE CASCADE,
+    commenter_public_key TEXT REFERENCES users(public_key),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- indexes for performance
 CREATE INDEX idx_rumors_deadline ON rumors(deadline);
 CREATE INDEX idx_votes_rumor ON votes(rumor_id);
@@ -60,3 +69,4 @@ CREATE INDEX idx_votes_voter ON votes(voter_public_key);
 CREATE INDEX idx_users_created ON users(created_at);
 CREATE INDEX idx_audit_timestamp ON audit_log(timestamp);
 CREATE INDEX idx_finalized_rumor ON finalized_scores(rumor_id);
+CREATE INDEX idx_comments_rumor ON comments(rumor_id);

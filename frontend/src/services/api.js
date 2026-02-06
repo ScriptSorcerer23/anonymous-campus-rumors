@@ -153,6 +153,34 @@ export const getReputation = async (publicKey) => {
     return response.json();
 };
 
+export const getComments = async (rumorId) => {
+    const response = await fetch(`${API_BASE}/rumors/${rumorId}/comments`);
+    if (!response.ok) throw new Error('Failed to fetch comments');
+    return response.json();
+};
+
+export const postComment = async (publicKey, privateKey, rumorId, content) => {
+    const message = `COMMENT:${rumorId}:${content}`;
+    const signature = signMessage(message, privateKey);
+    
+    const response = await fetch(`${API_BASE}/rumors/${rumorId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            commenter_public_key: publicKey,
+            content,
+            signature
+        })
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to post comment');
+    }
+    
+    return response.json();
+};
+
 export const deleteRumor = async (publicKey, privateKey, rumorId) => {
     const message = `DELETE:${rumorId}`;
     const signature = signMessage(message, privateKey);
