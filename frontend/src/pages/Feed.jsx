@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Bell, Search, LogOut, CheckCircle, Flame, Clock } from 'lucide-react';
 import RumorCard from '../components/RumorCard';
 import CreatePostModal from '../components/CreatePostModal';
-import { getRumors, getRumorScore } from '../services/api';
+import { getRumors, getRumorScore, getStoredKeys, getReputation } from '../services/api';
 import './Feed.css';
 
 const Feed = ({ userId, onLogout }) => {
@@ -11,11 +11,25 @@ const Feed = ({ userId, onLogout }) => {
     const [rumors, setRumors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [reputation, setReputation] = useState(null);
 
     // Load rumors from backend
     useEffect(() => {
         loadRumors();
+        loadReputation();
     }, []);
+
+    const loadReputation = async () => {
+        try {
+            const keys = getStoredKeys();
+            if (keys) {
+                const data = await getReputation(keys.publicKey);
+                setReputation(data.reputation);
+            }
+        } catch {
+            // Reputation not available yet (no finalized votes)
+        }
+    };
 
     const loadRumors = async () => {
         try {
@@ -24,37 +38,39 @@ const Feed = ({ userId, onLogout }) => {
             const data = await getRumors();
             
             // Transform backend data to frontend format
+            const keys = getStoredKeys();
             const transformedRumors = await Promise.all(data.map(async (rumor) => {
+                const deadlineTime = new Date(rumor.deadline).getTime();
+                const now = Date.now();
+                const isExpired = now > deadlineTime;
+                
+                let scoreValue = 50;
+                let hasVoted = false;
+                
                 try {
-                    const scoreData = await getRumorScore(rumor.id);
-                    const deadlineTime = new Date(rumor.deadline).getTime();
-                    const now = Date.now();
-                    
-                    return {
-                        id: rumor.id,
-                        content: rumor.content,
-                        creatorKey: rumor.creator_public_key,
-                        votes: rumor.vote_count || 0,
-                        initialScore: Math.round(scoreData.trust_score),
-                        comments: 0,
-                        commentData: [],
-                        timestamp: new Date(rumor.created_at).getTime(),
-                        deadline: deadlineTime,
-                        isExpired: now > deadlineTime
-                    };
+                    // Pass voter public key so backend can enforce FR3.4
+                    const scoreData = await getRumorScore(rumor.id, keys?.publicKey);
+                    scoreValue = Math.round(scoreData.trust_score);
+                    hasVoted = true; // If we got the score, we've voted (or it's finalized)
                 } catch {
-                    return {
-                        id: rumor.id,
-                        content: rumor.content,
-                        votes: rumor.vote_count || 0,
-                        initialScore: 50,
-                        comments: 0,
-                        commentData: [],
-                        timestamp: new Date(rumor.created_at).getTime(),
-                        deadline: new Date(rumor.deadline).getTime(),
-                        isExpired: new Date() > new Date(rumor.deadline)
-                    };
+                    // 403 = haven't voted yet (FR3.4), or other error — default to 50
+                    hasVoted = false;
                 }
+                
+                return {
+                    id: rumor.id,
+                    content: rumor.content,
+                    category: rumor.category || null,
+                    creatorKey: rumor.creator_public_key,
+                    votes: parseInt(rumor.vote_count) || 0,
+                    initialScore: scoreValue,
+                    hasVoted,
+                    comments: 0,
+                    commentData: [],
+                    timestamp: new Date(rumor.created_at).getTime(),
+                    deadline: deadlineTime,
+                    isExpired
+                };
             }));
             
             setRumors(transformedRumors);
@@ -116,6 +132,14 @@ const Feed = ({ userId, onLogout }) => {
                         <span className="user-label">ID:</span>
                         <span className="user-id">{userId}</span>
                     </div>
+                    {reputation !== null && (
+                        <div className="user-badge" style={{marginLeft: '8px'}}>
+                            <span className="user-label">Rep:</span>
+                            <span className="user-id" style={{color: reputation > 0 ? 'var(--accent-green, #4caf50)' : reputation < 0 ? 'var(--accent-pink, #ff4081)' : 'inherit'}}>
+                                {reputation}
+                            </span>
+                        </div>
+                    )}
                     <button className="icon-btn" title="Notifications">
                         <Bell size={20} />
                         <span className="notification-dot"></span>

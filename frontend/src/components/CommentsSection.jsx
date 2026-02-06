@@ -3,15 +3,20 @@ import React, { useState } from 'react';
 import { Send, User } from 'lucide-react';
 import './CommentsSection.css';
 
-const CommentsSection = ({ initialComments = [] }) => {
-    const [comments, setComments] = useState(initialComments.length > 0 ? initialComments : []);
+const CommentsSection = ({ initialComments = [], onCommentAdded }) => {
+    const [comments, setComments] = useState(initialComments);
     const [newComment, setNewComment] = useState("");
+
+    // Update comments when initialComments changes
+    React.useEffect(() => {
+        setComments(initialComments);
+    }, [initialComments]);
 
     const handlePost = (e) => {
         e.preventDefault();
         if (!newComment.trim()) return;
 
-        setComments([
+        const updatedComments = [
             ...comments,
             {
                 id: Date.now(),
@@ -19,7 +24,12 @@ const CommentsSection = ({ initialComments = [] }) => {
                 text: newComment,
                 time: "Just now"
             }
-        ]);
+        ];
+        
+        setComments(updatedComments);
+        if (onCommentAdded) {
+            onCommentAdded(updatedComments);
+        }
         setNewComment("");
     };
 

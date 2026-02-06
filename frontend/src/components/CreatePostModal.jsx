@@ -5,6 +5,7 @@ import './CreatePostModal.css';
 
 const CreatePostModal = ({ onClose, onSubmit }) => {
     const [content, setContent] = useState('');
+    const [category, setCategory] = useState('general');
     const [eventType, setEventType] = useState('current'); // 'current' or 'future'
     const [customDeadline, setCustomDeadline] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +56,7 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
             // Convert datetime-local value to proper ISO string
             const deadlineToSend = customDeadline ? new Date(customDeadline).toISOString() : null;
 
-            await submitRumor(keys.publicKey, keys.privateKey, content, eventType, deadlineToSend);
+            await submitRumor(keys.publicKey, keys.privateKey, content, category, eventType, deadlineToSend);
             
             onSubmit({ content, timestamp: Date.now() });
             onClose();
@@ -86,6 +87,24 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                         autoFocus
                         maxLength={1000}
                     />
+
+                    <div style={{margin: '15px 0'}}>
+                        <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold'}}>
+                            Category:
+                        </label>
+                        <select 
+                            value={category} 
+                            onChange={(e) => setCategory(e.target.value)}
+                            style={{width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'inherit', border: '1px solid rgba(255,255,255,0.1)'}}
+                        >
+                            <option value="general">General</option>
+                            <option value="academic">Academic</option>
+                            <option value="events">Events</option>
+                            <option value="sports">Sports</option>
+                            <option value="campus-life">Campus Life</option>
+                            <option value="administration">Administration</option>
+                        </select>
+                    </div>
 
                     <div style={{margin: '15px 0'}}>
                         <label style={{display: 'block', marginBottom: '10px', fontWeight: 'bold'}}>

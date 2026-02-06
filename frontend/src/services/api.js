@@ -5,7 +5,7 @@ const API_BASE = import.meta.env.PROD
 
 // Crypto helpers (browser-compatible)
 import nacl from 'tweetnacl';
-import { decodeUTF8, encodeBase64, decodeBase64, encodeUTF8 } from 'tweetnacl-util';
+import { decodeUTF8, encodeBase64, decodeBase64 } from 'tweetnacl-util';
 
 // Key management
 export const generateKeyPair = () => {
@@ -33,7 +33,7 @@ export const clearKeys = () => {
 };
 
 // Proof of Work
-export const computePoW = async (publicKey, difficulty = 5) => {
+export const computePoW = async (publicKey, difficulty = 4) => {
     const target = '0'.repeat(difficulty);
     let nonce = 0;
 
@@ -80,7 +80,7 @@ export const register = async (publicKey, nonce) => {
     return response.json();
 };
 
-export const submitRumor = async (publicKey, privateKey, content, eventType = 'current', customDeadline = null) => {
+export const submitRumor = async (publicKey, privateKey, content, category = 'general', eventType = 'current', customDeadline = null) => {
     const message = `SUBMIT:${content}`;
     const signature = signMessage(message, privateKey);
     
@@ -90,6 +90,7 @@ export const submitRumor = async (publicKey, privateKey, content, eventType = 'c
         body: JSON.stringify({
             creator_public_key: publicKey,
             content,
+            category,
             event_type: eventType,
             custom_deadline: customDeadline,
             signature
@@ -110,9 +111,16 @@ export const getRumors = async () => {
     return response.json();
 };
 
-export const getRumorScore = async (rumorId) => {
-    const response = await fetch(`${API_BASE}/rumors/${rumorId}/score`);
-    if (!response.ok) throw new Error('Failed to fetch score');
+export const getRumorScore = async (rumorId, voterPublicKey = null) => {
+    let url = `${API_BASE}/rumors/${rumorId}/score`;
+    if (voterPublicKey) {
+        url += `?voter_public_key=${encodeURIComponent(voterPublicKey)}`;
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch score');
+    }
     return response.json();
 };
 

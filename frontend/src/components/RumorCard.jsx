@@ -6,7 +6,7 @@ import './RumorCard.css';
 
 const RumorCard = ({ humor, onVote, onDelete }) => {
     const [localVote, setLocalVote] = useState(null);
-    const [showScore, setShowScore] = useState(false);
+    const [showScore, setShowScore] = useState(humor.hasVoted || false);
     const [showComments, setShowComments] = useState(false);
     const [score, setScore] = useState(humor.initialScore || 50);
     const [voteCount, setVoteCount] = useState(humor.votes || 0);
@@ -14,6 +14,8 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
     const [error, setError] = useState('');
     const [isVoting, setIsVoting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [comments, setComments] = useState(humor.commentData || []);
+    const [commentCount, setCommentCount] = useState((humor.commentData || []).length);
 
     // Check expiration on mount
     React.useEffect(() => {
@@ -40,8 +42,8 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
             setLocalVote(voteType);
             setVoteCount(prev => prev + 1);
             
-            // Fetch updated score
-            const scoreData = await getRumorScore(humor.id);
+            // Fetch updated score after voting (pass our key for FR3.4)
+            const scoreData = await getRumorScore(humor.id, keys.publicKey);
             setScore(Math.round(scoreData.trust_score));
             setShowScore(true);
             
@@ -138,6 +140,19 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
             <div className="rumor-header">
                 <div className="rumor-meta">
                     <span className="rumor-id">ID: #{humor.id}</span>
+                    {humor.category && (
+                        <span className="rumor-category" style={{
+                            background: 'rgba(0, 255, 255, 0.1)',
+                            border: '1px solid rgba(0, 255, 255, 0.3)',
+                            padding: '1px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            color: 'var(--accent-cyan, #00e5ff)',
+                            marginLeft: '6px'
+                        }}>
+                            {humor.category}
+                        </span>
+                    )}
                     <span className={`rumor-time ${isExpired ? 'expired' : ''}`}>
                         <Clock size={14} /> {getTimeRemaining()}
                     </span>
@@ -223,7 +238,7 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
                     onClick={() => setShowComments(!showComments)}
                 >
                     <MessageSquare size={16} />
-                    {humor.comments} Comments
+                    {commentCount} Comments
                 </button>
 
                 <button className="report-trigger">
@@ -231,7 +246,15 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
                 </button>
             </div>
 
-            {showComments && <CommentsSection initialComments={humor.commentData || []} />}
+            {showComments && (
+                <CommentsSection 
+                    initialComments={comments} 
+                    onCommentAdded={(newComments) => {
+                        setComments(newComments);
+                        setCommentCount(newComments.length);
+                    }}
+                />
+            )}
         </div>
     );
 };

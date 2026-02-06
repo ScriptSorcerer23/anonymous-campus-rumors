@@ -3,6 +3,8 @@ import LandingPage from './pages/LandingPage';
 import Feed from './pages/Feed';
 import './App.css';
 
+import { clearKeys } from './services/api';
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('acr_user_id');
+    clearKeys();
     setUser(null);
   };
 

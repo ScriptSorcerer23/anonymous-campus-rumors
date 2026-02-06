@@ -1,8 +1,4 @@
 // Anonymous Campus Rumor Verification System - Backend Server
-// DEPLOYMENT VERSION: v3.0 - CLEAN API ONLY - NO HTML BULLSHIT
-// FORCE RESTART: Remove all HTML interfaces
-process.env.DEPLOYMENT_VERSION = 'v3.0-clean-api';
-process.env.FORCE_RESTART = 'true';
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -37,7 +33,6 @@ function verifyPoW(publicKey, nonce, difficulty = 4) {
     const hash = crypto.createHash('sha256')
         .update(publicKey + nonce.toString())
         .digest('hex');
-    console.log(`PoW Check: nonce=${nonce}, hash=${hash}, target=${'0'.repeat(difficulty)}, valid=${hash.startsWith('0'.repeat(difficulty))}`);
     return hash.startsWith('0'.repeat(difficulty));
 }
 
@@ -130,22 +125,11 @@ app.post('/api/rumors', async (req, res) => {
         }
 
         // FR2.1: Calculate deadline based on event type
-        console.log('DEADLINE CALCULATION - Fixed version deployed!', { event_type, custom_deadline });
-        console.log('Environment check - FORCE_DEFAULT_DEADLINE:', process.env.FORCE_DEFAULT_DEADLINE);
-        console.log('Environment check - DEFAULT_DEADLINE_HOURS:', process.env.DEFAULT_DEADLINE_HOURS);
-        console.log('Environment check - IGNORE_CUSTOM_DEADLINE:', process.env.IGNORE_CUSTOM_DEADLINE);
-        
         let deadline;
         
-        // Check for environment variable override
-        if (process.env.FORCE_DEFAULT_DEADLINE === 'true' || process.env.IGNORE_CUSTOM_DEADLINE === 'true') {
-            console.log('🚨 ENVIRONMENT VARIABLE OVERRIDING CUSTOM DEADLINE! 🚨');
-            deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-            console.log('Forced default deadline due to env var:', deadline);
-        } else if (custom_deadline) {
+        if (custom_deadline) {
             // User provided custom deadline (works for both current and future events)
             deadline = new Date(custom_deadline);
-            console.log('Using custom deadline:', deadline);
             
             // Validate deadline is in future
             if (deadline <= new Date()) {
@@ -157,7 +141,6 @@ app.post('/api/rumors', async (req, res) => {
         } else {
             // No custom deadline: auto-assign 3 days (72 hours)
             deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-            console.log('Using default 3-day deadline:', deadline);
         }
 
         // FR8.1: Immutable voting window
@@ -571,8 +554,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-console.log('�🚀🚀 CLEAN API DEPLOYMENT v3.0 - NO HTML INTERFACE 🚀🚀🚀');
-console.log('🔥 HTML TEST INTERFACE REMOVED - API ONLY 🔥');
-console.log('🎯 DEPLOYMENT TIME:', new Date().toISOString());
-console.log('🌐 FRONTEND URL: https://scriptsorcerer23.github.io/anonymous-campus-rumors/');
-app.listen(PORT, () => console.log(`🚀 Clean API server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
