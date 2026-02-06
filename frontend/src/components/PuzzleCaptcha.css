@@ -1,0 +1,137 @@
+.captcha-container {
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    margin: 0 auto;
+}
+
+.captcha-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.captcha-header h3 {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.icon-lock {
+    color: var(--text-muted);
+}
+
+.icon-success {
+    color: var(--accent-green);
+    filter: drop-shadow(0 0 5px var(--accent-green));
+}
+
+.captcha-instruction {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.captcha-track {
+    position: relative;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 25px;
+    border: 1px solid var(--border-glass);
+    cursor: pointer;
+    overflow: hidden;
+    user-select: none;
+}
+
+.captcha-track.verified {
+    border-color: var(--accent-green);
+    cursor: default;
+}
+
+.captcha-target {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50px;
+    /* Target Zone Width */
+    background: rgba(112, 0, 255, 0.2);
+    border-left: 1px dashed var(--accent-purple);
+    border-right: 1px dashed var(--accent-purple);
+    transform: translateX(-50%);
+    /* Center on the percentage */
+    z-index: 1;
+}
+
+.target-pulse {
+    width: 100%;
+    height: 100%;
+    background: var(--accent-purple);
+    opacity: 0.1;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 0.1;
+    }
+}
+
+.captcha-handle {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 46px;
+    background: var(--text-primary);
+    border-radius: 50%;
+    z-index: 3;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    cursor: grab;
+    transition: transform 0.1s;
+}
+
+.captcha-handle:active {
+    cursor: grabbing;
+    transform: translateX(-50%) scale(0.95);
+}
+
+.handle-knob {
+    width: 10px;
+    height: 10px;
+    background: var(--bg-primary);
+    border-radius: 50%;
+}
+
+.captcha-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+    opacity: 0.3;
+    z-index: 0;
+}
+
+.captcha-track.verified .captcha-fill {
+    width: 100% !important;
+    background: var(--accent-green);
+    opacity: 0.5;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.captcha-track.verified .captcha-handle {
+    display: none;
+}
