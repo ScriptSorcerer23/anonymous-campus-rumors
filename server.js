@@ -57,9 +57,9 @@ function verifySignature(message, signature, publicKey) {
     }
 }
 
-// Check probation (FR4.1 - 1 minute wait for testing)
+// Check probation (1 minute for testing - adjustable)
 function isPastProbation(createdAt) {
-    return Date.now() - new Date(createdAt).getTime() >= 1 * 60 * 1000; // 1 minute
+    return Date.now() - new Date(createdAt).getTime() >= 1 * 60 * 1000; // 60 seconds
 }
 
 // ==================== USER REGISTRATION ====================
@@ -97,7 +97,8 @@ app.post('/api/register', async (req, res) => {
 
         res.json({ 
             success: true, 
-            probation_end: new Date(Date.now() + 1 * 60 * 1000) // 1 minute
+            probation_end: new Date(Date.now() + 1 * 60 * 1000), // 1 minute
+            message: 'Account created successfully! You can vote after 1 minute probation period.'
         });
     } catch (error) {
         res.status(400).json({ error: error.code === '23505' ? 'Already registered' : 'Registration failed' });
@@ -177,9 +178,15 @@ app.post('/api/vote', async (req, res) => {
         
         const user = userRes.rows[0];
 
-        // FR4.1: Check probation
+        // FR4.1: Check probation (1 minute for testing)
         if (!isPastProbation(user.created_at)) {
-            return res.status(403).json({ error: 'Account in probation period' });
+            const probationEnds = new Date(new Date(user.created_at).getTime() + 1 * 60 * 1000);
+            return res.status(403).json({ 
+                error: 'Account in probation period', 
+                message: 'New accounts must wait 1 minute before voting',
+                probation_ends: probationEnds,
+                seconds_remaining: Math.max(0, Math.ceil((probationEnds.getTime() - Date.now()) / 1000))
+            });
         }
 
         // Get rumor
