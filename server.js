@@ -126,10 +126,12 @@ app.post('/api/rumors', async (req, res) => {
         }
 
         // FR2.1: Calculate deadline based on event type
+        console.log('DEADLINE CALCULATION - Fixed version deployed!', { event_type, custom_deadline });
         let deadline;
         if (custom_deadline) {
             // User provided custom deadline (works for both current and future events)
             deadline = new Date(custom_deadline);
+            console.log('Using custom deadline:', deadline);
             
             // Validate deadline is in future
             if (deadline <= new Date()) {
@@ -141,6 +143,7 @@ app.post('/api/rumors', async (req, res) => {
         } else {
             // No custom deadline: auto-assign 3 days (72 hours)
             deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            console.log('Using default 3-day deadline:', deadline);
         }
 
         // FR8.1: Immutable voting window
