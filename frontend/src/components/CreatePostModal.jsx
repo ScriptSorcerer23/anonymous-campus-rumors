@@ -10,6 +10,16 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
 
+    // Helper to format date for datetime-local input (in local timezone)
+    const getLocalDateTimeString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!content.trim()) return;
@@ -42,7 +52,10 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                 throw new Error('No keys found. Please register first.');
             }
 
-            await submitRumor(keys.publicKey, keys.privateKey, content, eventType, customDeadline);
+            // Convert datetime-local value to proper ISO string
+            const deadlineToSend = customDeadline ? new Date(customDeadline).toISOString() : null;
+
+            await submitRumor(keys.publicKey, keys.privateKey, content, eventType, deadlineToSend);
             
             onSubmit({ content, timestamp: Date.now() });
             onClose();
@@ -112,14 +125,14 @@ const CreatePostModal = ({ onClose, onSubmit }) => {
                                     type="datetime-local" 
                                     value={customDeadline}
                                     onChange={(e) => setCustomDeadline(e.target.value)}
-                                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} // 1 min from now
-                                    max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
+                                    min={getLocalDateTimeString(new Date(Date.now() + 60000))} // 1 min from now
+                                    max={getLocalDateTimeString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))} // 30 days max
                                     style={{width: '100%', padding: '8px'}}
                                     required={eventType === 'future'}
                                 />
                                 <small style={{color: '#666', fontSize: '12px'}}>
                                     {eventType === 'future' 
-                                        ? 'Voting will close at this date/time'
+                                        ? 'Voting will close at this date/time (your local time)'
                                         : 'Leave empty for automatic 3-day deadline'
                                     }
                                 </small>

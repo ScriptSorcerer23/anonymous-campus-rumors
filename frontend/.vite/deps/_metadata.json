@@ -1,0 +1,46 @@
+{
+  "hash": "0427e0a9",
+  "configHash": "b72eb77a",
+  "lockfileHash": "f575491f",
+  "browserHash": "e4b0c4c3",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "e4bce1db",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "7e0722f2",
+      "needsInterop": true
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "af4a3f73",
+      "needsInterop": false
+    },
+    "tweetnacl-util": {
+      "src": "../../node_modules/tweetnacl-util/nacl-util.js",
+      "file": "tweetnacl-util.js",
+      "fileHash": "2e725d32",
+      "needsInterop": true
+    },
+    "tweetnacl": {
+      "src": "../../node_modules/tweetnacl/nacl-fast.js",
+      "file": "tweetnacl.js",
+      "fileHash": "0a33d895",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-5C6DFZPZ": {
+      "file": "chunk-5C6DFZPZ.js"
+    },
+    "chunk-PR4QN5HX": {
+      "file": "chunk-PR4QN5HX.js"
+    }
+  }
+}
