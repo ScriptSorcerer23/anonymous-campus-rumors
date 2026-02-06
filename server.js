@@ -581,7 +581,8 @@ app.get('/', (req, res) => {
     <div class="section">
         <h2>2️⃣ Submit Rumor</h2>
         <textarea id="rumorText" placeholder="Enter campus rumor..." rows="3"></textarea>
-        <input type="number" id="hoursUntil" placeholder="Hours until deadline" value="24">
+        <input type="number" id="hoursUntil" placeholder="Hours until deadline" value="0.05" step="0.01" min="0.01">
+        <small>Use 0.02 for 1 minute, 0.05 for 3 minutes, etc.</small>
         <button onclick="submitRumor()">Submit Rumor</button>
     </div>
     <div class="section">
@@ -646,11 +647,11 @@ app.get('/', (req, res) => {
             try {
                 const text = document.getElementById('rumorText').value;
                 const hours = parseInt(document.getElementById('hoursUntil').value);
-                const deadline = new Date(Date.now() + hours * 3600000).toISOString();
-                const message = text + deadline;
+                const custom_deadline = new Date(Date.now() + hours * 3600000).toISOString();
+                const message = text + custom_deadline;
                 const signature = signMessage(message, keys.privateKey);
                 log('Submitting rumor...', 'loading');
-                const res = await fetch(API + '/rumors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ public_key: keys.publicKey, content: text, deadline, signature }) });
+                const res = await fetch(API + '/rumors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ creator_public_key: keys.publicKey, content: text, custom_deadline, signature }) });
                 const data = await res.json();
                 if (res.ok) { log('✅ Rumor submitted! ID: ' + data.rumor_id, 'status'); loadRumors(); }
                 else { log('❌ Error: ' + data.error, 'error'); }
