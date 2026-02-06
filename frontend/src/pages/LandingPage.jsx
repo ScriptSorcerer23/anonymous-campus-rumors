@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Fingerprint, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import PuzzleCaptcha from '../components/PuzzleCaptcha';
+import { generateKeyPair, computePoW, register, storeKeys, getStoredKeys } from '../services/api';
 import './LandingPage.css';
 
 const LandingPage = ({ onLogin }) => {
@@ -8,27 +9,59 @@ const LandingPage = ({ onLogin }) => {
     const [hashId, setHashId] = useState('');
     const [showId, setShowId] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState('');
+    const [progress, setProgress] = useState('');
 
     const handleVerify = () => {
         setCaptchaVerified(true);
+        // Check if user already has keys
+        const keys = getStoredKeys();
+        if (keys) {
+            setHashId(keys.publicKey.substring(0, 12) + '...');
+        }
     };
 
     const handleLogin = (e) => {
         e.preventDefault();
         if (hashId.trim().length > 0) {
-            onLogin(hashId);
+            const keys = getStoredKeys();
+            if (keys) {
+                onLogin(keys.publicKey);
+            }
         }
     };
 
-    const generateNewId = () => {
+    const generateNewId = async () => {
         setIsGenerating(true);
-        setTimeout(() => {
-            // Mock Hash ID Generation
-            const mockHash = 'anon_' + Math.random().toString(36).substr(2, 9);
-            setHashId(mockHash);
-            setIsGenerating(false);
+        setError('');
+        
+        try {
+            // Generate keys
+            setProgress('Generating cryptographic keys...');
+            const keys = generateKeyPair();
+            
+            // Compute proof of work
+            setProgress('Computing proof-of-work (30-60 seconds)...');
+            const pow = await computePoW(keys.publicKey);
+            
+            // Register with backend
+            setProgress('Registering with network...');
+            await register(keys.publicKey, pow.nonce);
+            
+            // Store keys
+            storeKeys(keys.publicKey, keys.privateKey);
+            
+            // Display public key
+            setHashId(keys.publicKey.substring(0, 12) + '...');
             setShowId(true);
-        }, 1500);
+            setProgress('✅ Registration complete!');
+            
+            setTimeout(() => setProgress(''), 2000);
+        } catch (err) {
+            setError(err.message || 'Registration failed');
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     return (
@@ -51,6 +84,9 @@ const LandingPage = ({ onLogin }) => {
                     <div className="login-step fade-in">
                         <h2 className="step-title">Enter the Network</h2>
 
+                        {progress && <p style={{color: 'var(--accent-cyan)', margin: '10px 0'}}>{progress}</p>}
+                        {error && <p style={{color: 'var(--accent-pink)', margin: '10px 0'}}>❌ {error}</p>}
+
                         <form onSubmit={handleLogin} className="login-form">
                             <div className="input-group">
                                 <div className="icon-wrapper">
@@ -58,7 +94,7 @@ const LandingPage = ({ onLogin }) => {
                                 </div>
                                 <input
                                     type={showId ? "text" : "password"}
-                                    placeholder="Enter your Hash ID"
+                                    placeholder="Enter your Hash ID (public key)"
                                     value={hashId}
                                     onChange={(e) => setHashId(e.target.value)}
                                     className="hash-input"
@@ -75,7 +111,7 @@ const LandingPage = ({ onLogin }) => {
                             <button
                                 type="submit"
                                 className="main-btn"
-                                disabled={!hashId}
+                                disabled={!hashId || isGenerating}
                             >
                                 Connect <ArrowRight size={18} />
                             </button>
@@ -91,7 +127,7 @@ const LandingPage = ({ onLogin }) => {
                             disabled={isGenerating}
                         >
                             <UserPlus size={18} style={{ marginRight: '8px' }} />
-                            {isGenerating ? 'Generating...' : 'Generate New Identity'}
+                            {isGenerating ? progress || 'Generating...' : 'Generate New Identity'}
                         </button>
                     </div>
                 )}

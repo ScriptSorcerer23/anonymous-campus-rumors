@@ -1,51 +1,62 @@
 import React, { useState } from 'react';
 import { MessageSquare, Clock, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import CommentsSection from './CommentsSection';
+import { vote as voteAPI, getStoredKeys, getRumorScore } from '../services/api';
 import './RumorCard.css';
 
 const RumorCard = ({ humor, onVote }) => {
-    const [localVote, setLocalVote] = useState(null); // 'true' | 'false' | null
+    const [localVote, setLocalVote] = useState(null);
     const [showScore, setShowScore] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [score, setScore] = useState(humor.initialScore || 50);
     const [voteCount, setVoteCount] = useState(humor.votes || 0);
-    const [isExpired, setIsExpired] = useState(false);
+    const [isExpired, setIsExpired] = useState(humor.isExpired || false);
+    const [error, setError] = useState('');
+    const [isVoting, setIsVoting] = useState(false);
 
     // Check expiration on mount
     React.useEffect(() => {
-        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-        const now = Date.now();
-        if (now - humor.timestamp > threeDaysMs) {
+        if (humor.isExpired) {
             setIsExpired(true);
-            setShowScore(true); // Always show score if expired
-        }
-    }, [humor.timestamp]);
-
-    // Mock score calculation animation
-    const handleVote = (voteType) => {
-        if (localVote || isExpired) return; // Immutable vote
-        setLocalVote(voteType);
-
-        // Optimistic update
-        setVoteCount(prev => prev + 1);
-
-        // Animate score check
-        setTimeout(() => {
-            // In real app, this comes from backend. 
-            // Here we simulate a slight shift based on vote for demo
-            const shift = voteType === 'true' ? 5 : -5;
-            setScore(prev => Math.min(100, Math.max(0, prev + shift)));
             setShowScore(true);
+        }
+    }, [humor.isExpired]);
+
+    const handleVote = async (voteType) => {
+        if (localVote || isExpired || isVoting) return;
+        
+        setIsVoting(true);
+        setError('');
+
+        try {
+            const keys = getStoredKeys();
+            if (!keys) {
+                throw new Error('Please register first');
+            }
+
+            await voteAPI(keys.publicKey, keys.privateKey, humor.id, voteType === 'true');
+            
+            setLocalVote(voteType);
+            setVoteCount(prev => prev + 1);
+            
+            // Fetch updated score
+            const scoreData = await getRumorScore(humor.id);
+            setScore(Math.round(scoreData.trust_score));
+            setShowScore(true);
+            
             onVote && onVote(humor.id, voteType);
-        }, 600);
+        } catch (err) {
+            setError(err.message || 'Vote failed');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsVoting(false);
+        }
     };
 
     const getTimeRemaining = () => {
-        if (isExpired) return "Voting Closed";
-        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-        const expiryTime = humor.timestamp + threeDaysMs;
-        const diff = expiryTime - Date.now();
-
+        if (isExpired || !humor.deadline) return "Voting Closed";
+        
+        const diff = humor.deadline - Date.now();
         if (diff < 0) return "Voting Closed";
 
         const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -79,6 +90,7 @@ const RumorCard = ({ humor, onVote }) => {
 
     return (
         <div className="rumor-card glass-panel">
+            {error && <div style={{color: 'var(--accent-pink)', padding: '5px', fontSize: '12px'}}>❌ {error}</div>}
             <div className="rumor-header">
                 <div className="rumor-meta">
                     <span className="rumor-id">ID: #{humor.id}</span>

@@ -1,88 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Bell, Search, LogOut, CheckCircle, Flame, Clock } from 'lucide-react';
 import RumorCard from '../components/RumorCard';
 import CreatePostModal from '../components/CreatePostModal';
+import { getRumors, getRumorScore } from '../services/api';
 import './Feed.css';
 
 const Feed = ({ userId, onLogout }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('trending'); // trending | new | verified
+    const [activeTab, setActiveTab] = useState('trending');
+    const [rumors, setRumors] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    // Mock Data
-    const [rumors, setRumors] = useState([
-        {
-            id: "rm_8293",
-            content: "The dean is planning to replace the old library coffee shop with a Starbucks next semester.",
-            votes: 124,
-            initialScore: 65,
-            comments: 2,
-            commentData: [
-                { id: 1, user: "Anon #X92", text: "I heard this too from a TA.", time: "2h ago" },
-                { id: 2, user: "Anon #B12", text: "Fake news. The cafe was just renovated.", time: "1h ago" }
-            ],
-            timestamp: Date.now() - 3600000 // 1 hr ago
-        },
-        {
-            id: "rm_9921",
-            content: "Hackathon winners will allegedly get direct internships at Google this year.",
-            votes: 89,
-            initialScore: 42,
-            comments: 1,
-            commentData: [
-                { id: 3, user: "Anon #G55", text: "Google isn't even sponsoring this year.", time: "30m ago" }
-            ],
-            timestamp: Date.now() - 7200000 // 2 hrs ago
-        },
-        {
-            id: "rm_1102",
-            content: "Campus shuttle fees are increasing by 50% starting next month.",
-            votes: 312,
-            initialScore: 92, // Verified
-            comments: 15,
-            commentData: [],
-            timestamp: Date.now() - (4 * 24 * 60 * 60 * 1000) // 4 days ago (Expired)
-        },
-        {
-            id: "rm_3391",
-            content: "There's a secret tunnel connecting the hostels to the main cafe.",
-            votes: 450,
-            initialScore: 12, // Debunked
-            comments: 42,
-            commentData: [],
-            timestamp: Date.now() - (5 * 24 * 60 * 60 * 1000) // 5 days ago (Expired)
+    // Load rumors from backend
+    useEffect(() => {
+        loadRumors();
+    }, []);
+
+    const loadRumors = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            const data = await getRumors();
+            
+            // Transform backend data to frontend format
+            const transformedRumors = await Promise.all(data.map(async (rumor) => {
+                try {
+                    const scoreData = await getRumorScore(rumor.id);
+                    return {
+                        id: rumor.id,
+                        content: rumor.content,
+                        votes: rumor.vote_count || 0,
+                        initialScore: Math.round(scoreData.trust_score),
+                        comments: 0,
+                        commentData: [],
+                        timestamp: new Date(rumor.created_at).getTime(),
+                        deadline: new Date(rumor.deadline).getTime(),
+                        isExpired: new Date() > new Date(rumor.deadline)
+                    };
+                } catch {
+                    return {
+                        id: rumor.id,
+                        content: rumor.content,
+                        votes: rumor.vote_count || 0,
+                        initialScore: 50,
+                        comments: 0,
+                        commentData: [],
+                        timestamp: new Date(rumor.created_at).getTime(),
+                        deadline: new Date(rumor.deadline).getTime(),
+                        isExpired: new Date() > new Date(rumor.deadline)
+                    };
+                }
+            }));
+            
+            setRumors(transformedRumors);
+        } catch (err) {
+            setError(err.message || 'Failed to load rumors');
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
 
-    const handleNewPost = (postData) => {
-        const newPost = {
-            id: `rm_${Math.floor(Math.random() * 9000) + 1000}`,
-            content: postData.content,
-            votes: 0,
-            initialScore: 50,
-            comments: 0,
-            commentData: [], // EMPTY comments for new post
-            image: postData.image || (postData.hasImage ? "https://source.unsplash.com/random/800x600?campus" : null),
-            timestamp: postData.timestamp
-        };
-        setRumors([newPost, ...rumors]);
-        setActiveTab('new'); // Switch to new tab to see it
+    const handleNewPost = async (postData) => {
+        // Reload rumors after submission
+        await loadRumors();
+        setActiveTab('new');
     };
 
     const getFilteredRumors = () => {
-        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
         const now = Date.now();
 
         switch (activeTab) {
             case 'new':
-                // Added recently, not expired
-                return rumors.filter(r => (now - r.timestamp < threeDaysMs)).sort((a, b) => b.timestamp - a.timestamp);
+                // Recently added, not expired
+                return rumors.filter(r => !r.isExpired).sort((a, b) => b.timestamp - a.timestamp);
             case 'verified':
-                // Expired items (results public)
-                return rumors.filter(r => (now - r.timestamp >= threeDaysMs));
+                // Expired items (results finalized)
+                return rumors.filter(r => r.isExpired && r.initialScore >= 75);
             case 'trending':
             default:
                 // Active items, sorted by votes
-                return rumors.filter(r => (now - r.timestamp < threeDaysMs)).sort((a, b) => b.votes - a.votes);
+                return rumors.filter(r => !r.isExpired).sort((a, b) => b.votes - a.votes);
         }
     };
 
@@ -109,7 +107,13 @@ const Feed = ({ userId, onLogout }) => {
             </header>
 
             <main className="feed-content container">
-                <div className="feed-controls">
+                {loading ? (
+                    <div className="loading">Loading rumors...</div>
+                ) : error ? (
+                    <div className="error">{error}</div>
+                ) : (
+                    <>
+                        <div className="feed-controls">
                     <div className="search-bar">
                         <Search size={18} className="search-icon" />
                         <input type="text" placeholder="Search rumors..." />
