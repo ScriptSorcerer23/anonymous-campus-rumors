@@ -4,3 +4,38 @@
   flex-direction: column;
   min-height: 100vh;
 }
+
+.public-nav {
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.nav-back-btn {
+  background: linear-gradient(45deg, var(--accent-cyan), var(--accent-pink));
+  border: none;
+  color: white;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.nav-back-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .transparency-nav {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .nav-btn {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+}

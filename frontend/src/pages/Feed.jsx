@@ -5,7 +5,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import { getRumors, getRumorScore } from '../services/api';
 import './Feed.css';
 
-const Feed = ({ userId, onLogout }) => {
+const Feed = ({ userId, onLogout, onNavigate }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('trending');
     const [rumors, setRumors] = useState([]);
@@ -92,6 +92,23 @@ const Feed = ({ userId, onLogout }) => {
                 </div>
 
                 <div className="header-right">
+                    <div className="transparency-nav">
+                        <button 
+                            className="nav-btn"
+                            onClick={() => onNavigate && onNavigate('audit')}
+                            title="Public Audit Trail"
+                        >
+                            🔗 Audit
+                        </button>
+                        <button 
+                            className="nav-btn"
+                            onClick={() => onNavigate && onNavigate('reputation')}
+                            title="Reputation Checker"
+                        >
+                            🏆 Reputation
+                        </button>
+                    </div>
+                    
                     <div className="user-badge">
                         <span className="user-label">ID:</span>
                         <span className="user-id">{userId}</span>
