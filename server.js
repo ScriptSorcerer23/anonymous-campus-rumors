@@ -129,8 +129,18 @@ app.post('/api/rumors', async (req, res) => {
 
         // FR2.1: Calculate deadline based on event type
         console.log('DEADLINE CALCULATION - Fixed version deployed!', { event_type, custom_deadline });
+        console.log('Environment check - FORCE_DEFAULT_DEADLINE:', process.env.FORCE_DEFAULT_DEADLINE);
+        console.log('Environment check - DEFAULT_DEADLINE_HOURS:', process.env.DEFAULT_DEADLINE_HOURS);
+        console.log('Environment check - IGNORE_CUSTOM_DEADLINE:', process.env.IGNORE_CUSTOM_DEADLINE);
+        
         let deadline;
-        if (custom_deadline) {
+        
+        // Check for environment variable override
+        if (process.env.FORCE_DEFAULT_DEADLINE === 'true' || process.env.IGNORE_CUSTOM_DEADLINE === 'true') {
+            console.log('🚨 ENVIRONMENT VARIABLE OVERRIDING CUSTOM DEADLINE! 🚨');
+            deadline = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+            console.log('Forced default deadline due to env var:', deadline);
+        } else if (custom_deadline) {
             // User provided custom deadline (works for both current and future events)
             deadline = new Date(custom_deadline);
             console.log('Using custom deadline:', deadline);
