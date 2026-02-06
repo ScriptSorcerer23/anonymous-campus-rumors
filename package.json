@@ -1,0 +1,31 @@
+{
+  "name": "nust-olympiad-26'-hackathon",
+  "version": "1.0.0",
+  "description": "An anonymous, decentralized campus news and rumor verification platform designed to combat misinformation without compromising user privacy. The system enables students to submit, verify, and dispute campus-related information through a reputation-based voting mechanism that rewards accuracy and penalizes unreliable participants—all while maintaining complete anonymity.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ScriptSorcerer23/anonymous-campus-rumors.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ScriptSorcerer23/anonymous-campus-rumors/issues"
+  },
+  "homepage": "https://github.com/ScriptSorcerer23/anonymous-campus-rumors#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "pg": "^8.18.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
+  }
+}
