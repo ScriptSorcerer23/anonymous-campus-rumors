@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Fingerprint, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import PuzzleCaptcha from '../components/PuzzleCaptcha';
 import { generateKeyPair, computePoW, register, storeKeys, getStoredKeys } from '../services/api';
+import { encodeBase64, decodeBase64 } from 'tweetnacl-util';
+import nacl from 'tweetnacl';
 import './LandingPage.css';
 
 const LandingPage = ({ onLogin }) => {
@@ -17,17 +19,27 @@ const LandingPage = ({ onLogin }) => {
         // Check if user already has keys
         const keys = getStoredKeys();
         if (keys) {
-            setHashId(keys.publicKey.substring(0, 12) + '...');
+            // Auto-login if keys exist
+            onLogin(keys.publicKey);
         }
     };
 
     const handleLogin = (e) => {
         e.preventDefault();
-        if (hashId.trim().length > 0) {
-            const keys = getStoredKeys();
-            if (keys) {
-                onLogin(keys.publicKey);
-            }
+        if (hashId.trim().length === 0) return;
+        
+        try {
+            // User is pasting their private key to login
+            // Derive public key from private key
+            const privKeyBytes = decodeBase64(hashId);
+            const keyPair = nacl.sign.keyPair.fromSecretKey(privKeyBytes);
+            const publicKey = encodeBase64(keyPair.publicKey);
+            
+            // Store both keys
+            storeKeys(publicKey, hashId);
+            onLogin(publicKey);
+        } catch (err) {
+            setError('Invalid private key format');
         }
     };
 
@@ -50,11 +62,9 @@ const LandingPage = ({ onLogin }) => {
             
             // Store keys
             storeKeys(keys.publicKey, keys.privateKey);
-            
-            // Display public key
-            setHashId(keys.publicKey.substring(0, 12) + '...');
-            setShowId(true);
-            setProgress('✅ Registration complete!');
+            setHashId(keys.privateKey);
+            setShowId(false); // Hidden by default - user must toggle to see
+            setProgress('✅ Registration complete! SAVE YOUR PRIVATE KEY BELOW!');
             
             setTimeout(() => setProgress(''), 2000);
         } catch (err) {
@@ -94,7 +104,7 @@ const LandingPage = ({ onLogin }) => {
                                 </div>
                                 <input
                                     type={showId ? "text" : "password"}
-                                    placeholder="Enter your Hash ID (public key)"
+                                    placeholder="Paste your PRIVATE KEY to login"
                                     value={hashId}
                                     onChange={(e) => setHashId(e.target.value)}
                                     className="hash-input"
@@ -107,6 +117,12 @@ const LandingPage = ({ onLogin }) => {
                                     {showId ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
+                            
+                            {hashId && (
+                                <p style={{fontSize: '11px', color: 'var(--accent-cyan)', marginTop: '5px'}}>
+                                    🔐 This is your PRIVATE KEY. Never share it!
+                                </p>
+                            )}
 
                             <button
                                 type="submit"

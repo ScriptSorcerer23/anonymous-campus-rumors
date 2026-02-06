@@ -109,7 +109,7 @@ app.post('/api/register', async (req, res) => {
 // FR2: Rumor Submission
 app.post('/api/rumors', async (req, res) => {
     try {
-        const { content, category, creator_public_key, event_type, custom_deadline, signature } = req.body;
+        const { content, category, creator_public_key, hoursUntilDeadline = 24, signature } = req.body;
 
         // Validate content length (max 1000 characters)
         if (!content || content.length === 0) {
@@ -124,18 +124,11 @@ app.post('/api/rumors', async (req, res) => {
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // FR2.1: Calculate deadline
-        const deadline = event_type === 'future' && custom_deadline
-            ? new Date(custom_deadline)
-            : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-        // Validate deadline (not in past, not more than 30 days in future)
-        if (deadline <= new Date()) {
-            return res.status(400).json({ error: 'Deadline must be in the future' });
+        // FR2.1: Calculate deadline from hours
+        if (hoursUntilDeadline < 1 || hoursUntilDeadline > 720) {
+            return res.status(400).json({ error: 'Hours until deadline must be between 1 and 720' });
         }
-        if (deadline > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
-            return res.status(400).json({ error: 'Deadline cannot be more than 30 days in future' });
-        }
+        const deadline = new Date(Date.now() + hoursUntilDeadline * 60 * 60 * 1000);
 
         // FR8.1: Immutable voting window
         const result = await db.query(
@@ -672,5 +665,5 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

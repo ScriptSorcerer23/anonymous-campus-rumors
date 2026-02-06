@@ -1,5 +1,7 @@
 // API Service for Backend Communication
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.PROD 
+    ? 'https://rumor-system-backend.onrender.com/api' 
+    : 'http://localhost:3000/api';
 
 // Crypto helpers (browser-compatible)
 import nacl from 'tweetnacl';
@@ -79,17 +81,16 @@ export const register = async (publicKey, nonce) => {
 };
 
 export const submitRumor = async (publicKey, privateKey, content, hoursUntilDeadline = 24) => {
-    const deadline = new Date(Date.now() + hoursUntilDeadline * 3600000).toISOString();
-    const message = content + deadline;
+    const message = `SUBMIT:${content}`;
     const signature = signMessage(message, privateKey);
     
     const response = await fetch(`${API_BASE}/rumors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            public_key: publicKey,
+            creator_public_key: publicKey,
             content,
-            deadline,
+            hoursUntilDeadline,
             signature
         })
     });
@@ -115,16 +116,16 @@ export const getRumorScore = async (rumorId) => {
 };
 
 export const vote = async (publicKey, privateKey, rumorId, voteValue) => {
-    const message = `${rumorId}${voteValue}`;
+    const message = `VOTE:${rumorId}:${voteValue}`;
     const signature = signMessage(message, privateKey);
     
     const response = await fetch(`${API_BASE}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            public_key: publicKey,
+            voter_public_key: publicKey,
             rumor_id: rumorId,
-            vote: voteValue,
+            vote_value: voteValue,
             signature
         })
     });
@@ -144,14 +145,14 @@ export const getReputation = async (publicKey) => {
 };
 
 export const deleteRumor = async (publicKey, privateKey, rumorId) => {
-    const message = `delete${rumorId}`;
+    const message = `DELETE:${rumorId}`;
     const signature = signMessage(message, privateKey);
     
     const response = await fetch(`${API_BASE}/rumors/${rumorId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            public_key: publicKey,
+            creator_public_key: publicKey,
             signature
         })
     });

@@ -114,41 +114,43 @@ const Feed = ({ userId, onLogout }) => {
                 ) : (
                     <>
                         <div className="feed-controls">
-                    <div className="search-bar">
-                        <Search size={18} className="search-icon" />
-                        <input type="text" placeholder="Search rumors..." />
-                    </div>
-                    <div className="filter-tabs">
-                        <button
-                            className={`filter-tab ${activeTab === 'trending' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('trending')}
-                        >
-                            <Flame size={14} style={{ marginRight: 4 }} /> Trending
-                        </button>
-                        <button
-                            className={`filter-tab ${activeTab === 'new' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('new')}
-                        >
-                            <Clock size={14} style={{ marginRight: 4 }} /> New
-                        </button>
-                        <button
-                            className={`filter-tab ${activeTab === 'verified' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('verified')}
-                        >
-                            <CheckCircle size={14} style={{ marginRight: 4 }} /> Verified Results
-                        </button>
-                    </div>
-                </div>
+                            <div className="search-bar">
+                                <Search size={18} className="search-icon" />
+                                <input type="text" placeholder="Search rumors..." />
+                            </div>
+                            <div className="filter-tabs">
+                                <button
+                                    className={`filter-tab ${activeTab === 'trending' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('trending')}
+                                >
+                                    <Flame size={14} style={{ marginRight: 4 }} /> Trending
+                                </button>
+                                <button
+                                    className={`filter-tab ${activeTab === 'new' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('new')}
+                                >
+                                    <Clock size={14} style={{ marginRight: 4 }} /> New
+                                </button>
+                                <button
+                                    className={`filter-tab ${activeTab === 'verified' ? 'active' : ''}`}
+                                    onClick={() => setActiveTab('verified')}
+                                >
+                                    <CheckCircle size={14} style={{ marginRight: 4 }} /> Verified Results
+                                </button>
+                            </div>
+                        </div>
 
-                <div className="rumor-list">
-                    {getFilteredRumors().length > 0 ? (
-                        getFilteredRumors().map(rumor => (
-                            <RumorCard key={rumor.id} humor={rumor} />
-                        ))
-                    ) : (
-                        <div className="empty-state">No rumors in this category yet.</div>
-                    )}
-                </div>
+                        <div className="rumor-list">
+                            {getFilteredRumors().length > 0 ? (
+                                getFilteredRumors().map(rumor => (
+                                    <RumorCard key={rumor.id} humor={rumor} />
+                                ))
+                            ) : (
+                                <div className="empty-state">No rumors in this category yet.</div>
+                            )}
+                        </div>
+                    </>
+                )}
             </main>
 
             <button
