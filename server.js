@@ -1,4 +1,6 @@
 // Anonymous Campus Rumor Verification System - Backend Server
+// DEPLOYMENT VERSION: v2.2 - Emergency Deadline Fix
+process.env.DEPLOYMENT_VERSION = 'v2.2-emergency';
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -688,5 +690,6 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-console.log('🔥 DEADLINE FIX v2.1 DEPLOYED 🔥');
+console.log('🔥🔥🔥 DEADLINE FIX v2.2 DEPLOYED - EMERGENCY PATCH 🔥🔥🔥');
+console.log('Deployment timestamp:', new Date().toISOString());
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
