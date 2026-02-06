@@ -68,6 +68,10 @@ const Feed = ({ userId, onLogout }) => {
         setActiveTab('new');
     };
 
+    const handleDeleteRumor = (rumorId) => {
+        setRumors(prev => prev.filter(rumor => rumor.id !== rumorId));
+    };
+
     const getFilteredRumors = () => {
         const now = Date.now();
 
