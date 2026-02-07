@@ -111,8 +111,8 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
 
     // Dynamic Score Color
     const getScoreColor = (s) => {
-        if (s >= 80) return 'var(--accent-green)'; // Verified
-        if (s <= 20) return 'var(--accent-pink)'; // Debunked
+        if (s > 50) return 'var(--accent-green)'; // Verified
+        if (s < 50) return 'var(--accent-red)'; // Debunked
         return 'var(--accent-cyan)'; // Uncertain
     };
 
@@ -212,8 +212,8 @@ const RumorCard = ({ humor, onVote, onDelete }) => {
                     <div className="vote-result swing-in">
                         {isExpired && (
                             <div className="final-verdict" style={{ color: getScoreColor(score) }}>
-                                {score >= 80 ? "✅ OFFICIALLY VERIFIED" :
-                                    score <= 20 ? "❌ OFFICIALLY DEBUNKED" :
+                                {score > 50 ? "✅ OFFICIALLY VERIFIED" :
+                                    score < 50 ? "❌ OFFICIALLY DEBUNKED" :
                                         "⚠️ UNVERIFIED"}
                             </div>
                         )}
