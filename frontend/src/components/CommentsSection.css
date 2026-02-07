@@ -103,9 +103,8 @@
     cursor: default;
 }
 
-/* Camera & Gallery buttons */
-.camera-btn,
-.gallery-btn {
+/* Camera button */
+.camera-btn {
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -120,15 +119,13 @@
     cursor: pointer;
 }
 
-.camera-btn:hover:not(:disabled),
-.gallery-btn:hover:not(:disabled) {
+.camera-btn:hover:not(:disabled) {
     color: var(--accent-cyan);
     border-color: var(--accent-cyan);
     background: rgba(0, 229, 255, 0.1);
 }
 
-.camera-btn:disabled,
-.gallery-btn:disabled {
+.camera-btn:disabled {
     opacity: 0.4;
     cursor: default;
 }

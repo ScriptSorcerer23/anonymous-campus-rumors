@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, Loader, Camera, X, Image } from 'lucide-react';
+import { Send, User, Loader, Camera, X } from 'lucide-react';
 import { getComments, postComment, getStoredKeys } from '../services/api';
 import './CommentsSection.css';
 
@@ -12,7 +12,6 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
     const [error, setError] = useState('');
     const [imagePreview, setImagePreview] = useState(null);
     const [imageData, setImageData] = useState(null);
-    const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
 
     // Load comments from backend
@@ -104,7 +103,6 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
     const removeImage = () => {
         setImagePreview(null);
         setImageData(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
         if (cameraInputRef.current) cameraInputRef.current.value = '';
     };
 
@@ -192,19 +190,12 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
             )}
 
             <form className="comment-input-area" onSubmit={handlePost}>
-                {/* Hidden file inputs */}
+                {/* Camera-only input (no gallery to prevent fake/AI images) */}
                 <input
                     type="file"
                     ref={cameraInputRef}
                     accept="image/*"
                     capture="environment"
-                    onChange={handleImageSelect}
-                    style={{ display: 'none' }}
-                />
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
                     onChange={handleImageSelect}
                     style={{ display: 'none' }}
                 />
@@ -217,15 +208,6 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
                     disabled={posting}
                 >
                     <Camera size={16} />
-                </button>
-                <button 
-                    type="button" 
-                    className="gallery-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Upload image"
-                    disabled={posting}
-                >
-                    <Image size={16} />
                 </button>
 
                 <input
