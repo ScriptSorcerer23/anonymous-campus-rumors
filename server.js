@@ -38,6 +38,17 @@ db.query('SELECT NOW()', (err, res) => {
             // Add image_url column if table already existed without it
             db.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS image_url TEXT').catch(() => {});
         }).catch(e => console.error('Comments table creation error:', e.message));
+
+        // Auto-create reputation_penalties table for persistent deletion penalties
+        db.query(`
+            CREATE TABLE IF NOT EXISTS reputation_penalties (
+                id SERIAL PRIMARY KEY,
+                public_key TEXT REFERENCES users(public_key),
+                penalty NUMERIC NOT NULL,
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `).catch(e => console.error('Penalties table creation error:', e.message));
     }
 });
 
@@ -270,24 +281,20 @@ app.get('/api/rumors/:id/score', async (req, res) => {
             }
         }
 
-        // FR5.2: Weighted vote formula (calculate reputation on-the-fly)
+        // FR5.2: Simple vote count (unweighted for demo clarity)
         const votes = await db.query(
-            'SELECT vote_value, voter_public_key FROM votes WHERE rumor_id = $1',
+            'SELECT vote_value FROM votes WHERE rumor_id = $1',
             [id]
         );
 
-        let trueWeight = 0, falseWeight = 0;
-        
-        // Calculate each voter's reputation at vote time
+        let trueCount = 0, falseCount = 0;
         for (const v of votes.rows) {
-            const rep = await getReputationAtTime(v.voter_public_key, new Date());
-            const weight = rep > 0 ? rep : 1;
-            v.vote_value ? trueWeight += weight : falseWeight += weight;
+            v.vote_value ? trueCount++ : falseCount++;
         }
 
         // FR5.1: Score 0-100
-        const total = trueWeight + falseWeight;
-        const score = total > 0 ? (trueWeight / total) * 100 : 50;
+        const total = trueCount + falseCount;
+        const score = total > 0 ? (trueCount / total) * 100 : 50;
 
         res.json({ 
             trust_score: Math.round(score * 10) / 10,
@@ -302,7 +309,9 @@ app.get('/api/rumors/:id/score', async (req, res) => {
 
 // ==================== REPUTATION SYSTEM ====================
 
-// FR4.3 & FR4.4: Calculate reputation on-the-fly (PURE FUNCTION)
+// Simple reputation calculation:
+// Voter: +0.1 for correct vote, -0.1 for wrong vote
+// Rumor creator: +0.2 if rumor verified TRUE, -0.2 if proven FALSE
 async function getReputationAtTime(publicKey, asOfDate = new Date()) {
     // Check cache first (performance optimization)
     const cached = await db.query(
@@ -310,44 +319,58 @@ async function getReputationAtTime(publicKey, asOfDate = new Date()) {
         [publicKey]
     );
     
-    // Use cache if less than 5 minutes old
-    if (cached.rows[0] && (Date.now() - new Date(cached.rows[0].last_calculated_at).getTime() < 5 * 60 * 1000)) {
+    // Use cache if less than 1 minute old
+    if (cached.rows[0] && (Date.now() - new Date(cached.rows[0].last_calculated_at).getTime() < 60 * 1000)) {
         return cached.rows[0].reputation;
     }
 
-    // FR6.1: Only use finalized rumors (deleted rumors won't have entries)
+    let rep = 0;
+
+    // 1) Voter reputation: +0.1 correct, -0.1 wrong (only finalized rumors)
     const votes = await db.query(
-        `SELECT v.rumor_id, v.vote_value, v.voted_at, f.outcome
+        `SELECT v.vote_value, f.outcome
          FROM votes v
          JOIN finalized_scores f ON v.rumor_id = f.rumor_id
-         WHERE v.voter_public_key = $1
-         ORDER BY v.voted_at ASC`,
+         WHERE v.voter_public_key = $1`,
         [publicKey]
     );
 
-    let rep = 0;
-    const now = Date.now();
-
     for (const vote of votes.rows) {
-        // Use finalized outcome (already calculated when rumor closed)
-        const correct = vote.vote_value === vote.outcome;
-
-        // FR4.4: Recency weighting (exponential decay over 30 days)
-        const ageInDays = (now - new Date(vote.voted_at).getTime()) / (1000 * 60 * 60 * 24);
-        const recencyFactor = Math.exp(-ageInDays / 30);
-
-        // FR4.3: Exponential growth/decay
-        if (correct) {
-            rep = rep * 1.15 + (0.15 * recencyFactor);
+        if (vote.vote_value === vote.outcome) {
+            rep += 0.1;  // Correct vote
         } else {
-            rep = rep * 0.85;
+            rep -= 0.1;  // Wrong vote
         }
     }
 
-    // FR4.4: Normalize to prevent unbounded growth
-    rep = Math.tanh(rep / 100) * 100;
+    // 2) Creator reputation: +0.2 if rumor verified, -0.2 if debunked
+    const createdRumors = await db.query(
+        `SELECT f.outcome
+         FROM rumors r
+         JOIN finalized_scores f ON r.id = f.rumor_id
+         WHERE r.creator_public_key = $1`,
+        [publicKey]
+    );
 
-    // Update cache (disposable - can be deleted anytime)
+    for (const rumor of createdRumors.rows) {
+        if (rumor.outcome === true) {
+            rep += 0.2;  // Rumor was verified true
+        } else {
+            rep -= 0.2;  // Rumor was proven false
+        }
+    }
+
+    // Round to 1 decimal place
+    rep = Math.round(rep * 10) / 10;
+
+    // 3) Add permanent penalties from deleted debunked rumors
+    const penalties = await db.query(
+        'SELECT COALESCE(SUM(penalty), 0) as total_penalty FROM reputation_penalties WHERE public_key = $1',
+        [publicKey]
+    );
+    rep = Math.round((rep + parseFloat(penalties.rows[0].total_penalty)) * 10) / 10;
+
+    // Update cache
     await db.query(
         'INSERT INTO reputation_cache (public_key, reputation) VALUES ($1, $2) ON CONFLICT (public_key) DO UPDATE SET reputation = $2, last_calculated_at = NOW()',
         [publicKey, rep]
@@ -358,48 +381,40 @@ async function getReputationAtTime(publicKey, asOfDate = new Date()) {
 
 async function getRumorOutcome(rumorId) {
     const votes = await db.query(
-        'SELECT vote_value, voter_public_key FROM votes WHERE rumor_id = $1',
+        'SELECT vote_value FROM votes WHERE rumor_id = $1',
         [rumorId]
     );
 
-    let trueW = 0, falseW = 0;
-    
-    // Calculate weighted outcome using reputation at vote time
+    let trueCount = 0, falseCount = 0;
     for (const v of votes.rows) {
-        const rep = await getReputationAtTime(v.voter_public_key, new Date());
-        const weight = rep > 0 ? rep : 1;
-        v.vote_value ? trueW += weight : falseW += weight;
+        v.vote_value ? trueCount++ : falseCount++;
     }
 
-    return trueW >= falseW; // TRUE if >= 50% weighted
+    return trueCount >= falseCount; // TRUE if majority says true
 }
 
 // ==================== FINALIZATION CRON JOB ====================
 
-// FR5.3: Finalize scores on deadline (prevents future manipulation)
+// FR5.3: Finalize scores on deadline
 async function finalizeExpiredRumors() {
     const expired = await db.query(
-        'SELECT id FROM rumors WHERE deadline < NOW() AND id NOT IN (SELECT rumor_id FROM finalized_scores)'
+        'SELECT id, creator_public_key FROM rumors WHERE deadline < NOW() AND id NOT IN (SELECT rumor_id FROM finalized_scores)'
     );
 
     for (const rumor of expired.rows) {
-        // Calculate final weighted score
         const votes = await db.query(
             'SELECT vote_value, voter_public_key FROM votes WHERE rumor_id = $1',
             [rumor.id]
         );
 
-        let trueWeight = 0, falseWeight = 0;
-        
+        let trueCount = 0, falseCount = 0;
         for (const v of votes.rows) {
-            const rep = await getReputationAtTime(v.voter_public_key, new Date());
-            const weight = rep > 0 ? rep : 1;
-            v.vote_value ? trueWeight += weight : falseWeight += weight;
+            v.vote_value ? trueCount++ : falseCount++;
         }
 
-        const total = trueWeight + falseWeight;
-        const score = total > 0 ? (trueWeight / total) * 100 : 50;
-        const outcome = trueWeight >= falseWeight;
+        const total = trueCount + falseCount;
+        const score = total > 0 ? (trueCount / total) * 100 : 50;
+        const outcome = trueCount >= falseCount;
 
         // Store finalized score (IMMUTABLE)
         await db.query(
@@ -407,11 +422,15 @@ async function finalizeExpiredRumors() {
             [rumor.id, score, votes.rows.length, outcome]
         );
 
-        // Invalidate cache for all voters (reputation will recalculate with new finalized rumor)
-        if (votes.rows.length > 0) {
+        // Invalidate cache for all voters AND the creator
+        const affectedKeys = votes.rows.map(v => v.voter_public_key);
+        if (rumor.creator_public_key && !affectedKeys.includes(rumor.creator_public_key)) {
+            affectedKeys.push(rumor.creator_public_key);
+        }
+        if (affectedKeys.length > 0) {
             await db.query(
                 'DELETE FROM reputation_cache WHERE public_key = ANY($1)',
-                [votes.rows.map(v => v.voter_public_key)]
+                [affectedKeys]
             );
         }
 
@@ -447,6 +466,11 @@ app.delete('/api/rumors/:id', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
+        // Get finalized outcome before deletion (if exists)
+        const finalized = await db.query('SELECT outcome FROM finalized_scores WHERE rumor_id = $1', [id]);
+        const wasFinalized = finalized.rows.length > 0;
+        const outcome = wasFinalized ? finalized.rows[0].outcome : null;
+
         // Get affected voters before deletion
         const voters = await db.query('SELECT DISTINCT voter_public_key FROM votes WHERE rumor_id = $1', [id]);
 
@@ -456,13 +480,13 @@ app.delete('/api/rumors/:id', async (req, res) => {
             ['DELETE', creator_public_key, id.toString(), crypto.createHash('sha256').update(`${id}:${signature}`).digest('hex')]
         );
 
-        // FR6.1: Hard delete - data is GONE (votes cascade delete automatically)
+        // Hard delete rumor (votes cascade delete automatically)
         await db.query('DELETE FROM rumors WHERE id = $1', [id]);
         
-        // Also delete finalized score if it exists
+        // Delete finalized score
         await db.query('DELETE FROM finalized_scores WHERE rumor_id = $1', [id]);
 
-        // FR6.1: Invalidate reputation cache for affected voters
+        // Invalidate cache for all VOTERS so their rep recalculates WITHOUT this rumor
         if (voters.rows.length > 0) {
             await db.query(
                 'DELETE FROM reputation_cache WHERE public_key = ANY($1)',
@@ -470,12 +494,43 @@ app.delete('/api/rumors/:id', async (req, res) => {
             );
         }
 
+        // Handle CREATOR reputation on deletion:
+        // If rumor was finalized and outcome was FALSE (wrong rumor),
+        // the creator's -0.2 penalty should STAY (not be recalculated away).
+        // We do this by inserting a permanent penalty record.
+        // If outcome was TRUE, the +0.2 bonus is naturally removed when
+        // finalized_scores is deleted (recalculation won't find it).
+        if (wasFinalized && outcome === false) {
+            // Creator had a -0.2 penalty. The finalized_scores row is now deleted,
+            // so recalculation would lose this penalty. We need to preserve it
+            // by storing a permanent reputation adjustment.
+            // We use reputation_cache to store a sticky penalty:
+            // First recalculate without the deleted rumor, then subtract 0.2
+            await db.query('DELETE FROM reputation_cache WHERE public_key = $1', [creator_public_key]);
+            const freshRep = await getReputationAtTime(creator_public_key);
+            const penalizedRep = Math.round((freshRep - 0.2) * 10) / 10;
+            await db.query(
+                'INSERT INTO reputation_cache (public_key, reputation) VALUES ($1, $2) ON CONFLICT (public_key) DO UPDATE SET reputation = $2, last_calculated_at = NOW()',
+                [creator_public_key, penalizedRep]
+            );
+            // Also store in a permanent penalties table so it persists across recalculations
+            await db.query(
+                'INSERT INTO reputation_penalties (public_key, penalty, reason, created_at) VALUES ($1, $2, $3, NOW())',
+                [creator_public_key, -0.2, `Deleted debunked rumor #${id}`]
+            );
+        } else {
+            // Outcome was TRUE or not finalized: just invalidate creator cache
+            // so bonus is recalculated away naturally
+            await db.query('DELETE FROM reputation_cache WHERE public_key = $1', [creator_public_key]);
+        }
+
         res.json({ 
             success: true, 
-            message: 'Rumor permanently deleted. Reputation will recalculate from remaining votes.',
+            message: 'Rumor permanently deleted. Reputations recalculated.',
             affected_voters: voters.rows.length 
         });
     } catch (error) {
+        console.error('Deletion error:', error.message);
         res.status(500).json({ error: 'Deletion failed' });
     }
 });
