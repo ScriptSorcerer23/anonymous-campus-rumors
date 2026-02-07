@@ -10,7 +10,7 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 const db = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://localhost/rumor_system',
@@ -30,10 +30,13 @@ db.query('SELECT NOW()', (err, res) => {
                 rumor_id INT REFERENCES rumors(id) ON DELETE CASCADE,
                 commenter_public_key TEXT REFERENCES users(public_key),
                 content TEXT NOT NULL,
+                image_url TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `).then(() => {
             db.query('CREATE INDEX IF NOT EXISTS idx_comments_rumor ON comments(rumor_id)').catch(() => {});
+            // Add image_url column if table already existed without it
+            db.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS image_url TEXT').catch(() => {});
         }).catch(e => console.error('Comments table creation error:', e.message));
     }
 });
@@ -519,7 +522,13 @@ app.get('/api/user/:publicKey/reputation', async (req, res) => {
 app.get('/api/rumors', async (req, res) => {
     try {
         const rumors = await db.query(
-            'SELECT r.id, r.content, r.category, r.creator_public_key, r.created_at, r.deadline, COUNT(v.rumor_id) as vote_count FROM rumors r LEFT JOIN votes v ON r.id = v.rumor_id GROUP BY r.id ORDER BY r.created_at DESC'
+            `SELECT r.id, r.content, r.category, r.creator_public_key, r.created_at, r.deadline,
+             COUNT(DISTINCT v.voter_public_key) as vote_count,
+             COUNT(DISTINCT c.id) as comment_count
+             FROM rumors r
+             LEFT JOIN votes v ON r.id = v.rumor_id
+             LEFT JOIN comments c ON r.id = c.rumor_id
+             GROUP BY r.id ORDER BY r.created_at DESC`
         );
         res.json(rumors.rows);
     } catch (error) {
@@ -553,7 +562,7 @@ app.get('/api/rumors/:id/comments', async (req, res) => {
     try {
         const { id } = req.params;
         const comments = await db.query(
-            'SELECT id, rumor_id, commenter_public_key, content, created_at FROM comments WHERE rumor_id = $1 ORDER BY created_at ASC',
+            'SELECT id, rumor_id, commenter_public_key, content, image_url, created_at FROM comments WHERE rumor_id = $1 ORDER BY created_at ASC',
             [id]
         );
         res.json(comments.rows);
@@ -566,17 +575,22 @@ app.get('/api/rumors/:id/comments', async (req, res) => {
 app.post('/api/rumors/:id/comments', async (req, res) => {
     try {
         const { id } = req.params;
-        const { commenter_public_key, content, signature } = req.body;
+        const { commenter_public_key, content, signature, image_url } = req.body;
 
-        if (!content || content.trim().length === 0) {
+        if ((!content || content.trim().length === 0) && !image_url) {
             return res.status(400).json({ error: 'Comment cannot be empty' });
         }
-        if (content.length > 500) {
+        if (content && content.length > 500) {
             return res.status(400).json({ error: 'Comment too long (max 500 characters)' });
         }
+        // Validate image size (max ~2MB base64)
+        if (image_url && image_url.length > 2800000) {
+            return res.status(400).json({ error: 'Image too large (max 2MB)' });
+        }
 
-        // Verify signature
-        if (!verifySignature(`COMMENT:${id}:${content}`, signature, commenter_public_key)) {
+        // Verify signature (signature covers text content only)
+        const signContent = content || '';
+        if (!verifySignature(`COMMENT:${id}:${signContent}`, signature, commenter_public_key)) {
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
@@ -593,8 +607,8 @@ app.post('/api/rumors/:id/comments', async (req, res) => {
         }
 
         const result = await db.query(
-            'INSERT INTO comments (rumor_id, commenter_public_key, content) VALUES ($1, $2, $3) RETURNING id, rumor_id, commenter_public_key, content, created_at',
-            [id, commenter_public_key, content.trim()]
+            'INSERT INTO comments (rumor_id, commenter_public_key, content, image_url) VALUES ($1, $2, $3, $4) RETURNING id, rumor_id, commenter_public_key, content, image_url, created_at',
+            [id, commenter_public_key, (content || '').trim(), image_url || null]
         );
 
         res.json({ success: true, comment: result.rows[0] });

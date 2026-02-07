@@ -159,18 +159,22 @@ export const getComments = async (rumorId) => {
     return response.json();
 };
 
-export const postComment = async (publicKey, privateKey, rumorId, content) => {
-    const message = `COMMENT:${rumorId}:${content}`;
+export const postComment = async (publicKey, privateKey, rumorId, content, imageUrl = null) => {
+    const signContent = content || '';
+    const message = `COMMENT:${rumorId}:${signContent}`;
     const signature = signMessage(message, privateKey);
+    
+    const body = {
+        commenter_public_key: publicKey,
+        content: content || '',
+        signature
+    };
+    if (imageUrl) body.image_url = imageUrl;
     
     const response = await fetch(`${API_BASE}/rumors/${rumorId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            commenter_public_key: publicKey,
-            content,
-            signature
-        })
+        body: JSON.stringify(body)
     });
     
     if (!response.ok) {

@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS comments (
     rumor_id INT REFERENCES rumors(id) ON DELETE CASCADE,
     commenter_public_key TEXT REFERENCES users(public_key),
     content TEXT NOT NULL,
+    image_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
