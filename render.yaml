@@ -3,6 +3,7 @@ services:
   name: rumor-system-backend
   env: node
   plan: free
+  branch: main
   buildCommand: npm install
   startCommand: node server.js
   envVars:
