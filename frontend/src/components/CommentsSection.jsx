@@ -1,8 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Loader, Camera, X } from 'lucide-react';
 import { getComments, postComment, getStoredKeys } from '../services/api';
 import './CommentsSection.css';
+
+const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
     const [comments, setComments] = useState([]);
@@ -12,12 +14,20 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
     const [error, setError] = useState('');
     const [imagePreview, setImagePreview] = useState(null);
     const [imageData, setImageData] = useState(null);
+    const [showCamera, setShowCamera] = useState(false);
     const cameraInputRef = useRef(null);
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
 
     // Load comments from backend
     useEffect(() => {
         loadComments();
     }, [rumorId]);
+
+    // Cleanup camera stream on unmount
+    useEffect(() => {
+        return () => stopCamera();
+    }, []);
 
     const loadComments = async () => {
         try {
@@ -74,18 +84,13 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
         });
     };
 
+    // Mobile: native camera via file input
     const handleImageSelect = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
         
         if (!file.type.startsWith('image/')) {
             setError('Please select an image file');
-            setTimeout(() => setError(''), 3000);
-            return;
-        }
-        
-        if (file.size > 10 * 1024 * 1024) {
-            setError('Image too large (max 10MB before compression)');
             setTimeout(() => setError(''), 3000);
             return;
         }
@@ -99,6 +104,76 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
             setTimeout(() => setError(''), 3000);
         }
     };
+
+    // Desktop: WebRTC camera
+    const openCamera = async () => {
+        if (isMobile()) {
+            cameraInputRef.current?.click();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            });
+            streamRef.current = stream;
+            setShowCamera(true);
+
+            // Wait for video element to mount
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    videoRef.current.play().catch(() => {});
+                }
+            }, 100);
+        } catch (err) {
+            if (err.name === 'NotAllowedError') {
+                setError('Camera access denied. Please allow camera in browser settings.');
+            } else if (err.name === 'NotFoundError') {
+                setError('No camera found on this device.');
+            } else {
+                setError('Could not access camera.');
+            }
+            setTimeout(() => setError(''), 4000);
+        }
+    };
+
+    const capturePhoto = useCallback(() => {
+        if (!videoRef.current) return;
+
+        const video = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        // Compress to max 800px wide
+        let width = canvas.width;
+        let height = canvas.height;
+        if (width > 800) {
+            height = (height * 800) / width;
+            width = 800;
+        }
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = width;
+        outCanvas.height = height;
+        outCanvas.getContext('2d').drawImage(canvas, 0, 0, width, height);
+
+        const dataUrl = outCanvas.toDataURL('image/jpeg', 0.7);
+        setImagePreview(dataUrl);
+        setImageData(dataUrl);
+        stopCamera();
+    }, []);
+
+    const stopCamera = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setShowCamera(false);
+    }, []);
 
     const removeImage = () => {
         setImagePreview(null);
@@ -180,6 +255,23 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
                 )}
             </div>
 
+            {/* Desktop webcam viewfinder modal */}
+            {showCamera && (
+                <div className="camera-modal">
+                    <div className="camera-viewfinder">
+                        <video ref={videoRef} autoPlay playsInline muted className="camera-video" />
+                        <div className="camera-controls">
+                            <button type="button" className="capture-btn" onClick={capturePhoto} title="Take photo">
+                                <div className="capture-btn-inner" />
+                            </button>
+                            <button type="button" className="cancel-camera-btn" onClick={stopCamera}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {imagePreview && (
                 <div className="image-preview-container">
                     <img src={imagePreview} alt="Preview" className="image-preview" />
@@ -190,7 +282,7 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
             )}
 
             <form className="comment-input-area" onSubmit={handlePost}>
-                {/* Camera-only input (no gallery to prevent fake/AI images) */}
+                {/* Hidden mobile camera input */}
                 <input
                     type="file"
                     ref={cameraInputRef}
@@ -203,9 +295,9 @@ const CommentsSection = ({ rumorId, onCommentCountUpdate }) => {
                 <button 
                     type="button" 
                     className="camera-btn"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={openCamera}
                     title="Take a photo"
-                    disabled={posting}
+                    disabled={posting || showCamera}
                 >
                     <Camera size={16} />
                 </button>
