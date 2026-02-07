@@ -96,14 +96,14 @@ const Feed = ({ userId, onLogout }) => {
         switch (activeTab) {
             case 'new':
                 // Recently added, not expired
-                return rumors.filter(r => !r.isExpired).sort((a, b) => b.timestamp - a.timestamp);
+                return rumors.filter(r => now <= r.deadline).sort((a, b) => b.timestamp - a.timestamp);
             case 'verified':
-                // Expired items (results finalized)
-                return rumors.filter(r => r.isExpired && r.initialScore >= 75);
+                // Expired items (results finalized) — show all completed rumors
+                return rumors.filter(r => now > r.deadline).sort((a, b) => b.timestamp - a.timestamp);
             case 'trending':
             default:
                 // Active items, sorted by votes
-                return rumors.filter(r => !r.isExpired).sort((a, b) => b.votes - a.votes);
+                return rumors.filter(r => now <= r.deadline).sort((a, b) => b.votes - a.votes);
         }
     };
 
