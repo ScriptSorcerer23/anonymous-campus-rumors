@@ -693,5 +693,19 @@ app.get('/', (req, res) => {
     });
 });
 
+// Temporary admin endpoint to reset finalized scores for re-finalization
+app.post('/api/admin/reset-finalized', async (req, res) => {
+    try {
+        const { admin_key } = req.body;
+        if (admin_key !== 'reset-2026-feb') return res.status(403).json({ error: 'Unauthorized' });
+        await db.query('DELETE FROM finalized_scores');
+        await db.query('DELETE FROM reputation_cache');
+        const expired = await db.query('SELECT COUNT(*) FROM rumors WHERE deadline < NOW()');
+        res.json({ success: true, message: 'Cleared all finalized scores and rep cache', expired_to_refinalize: expired.rows[0].count });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
