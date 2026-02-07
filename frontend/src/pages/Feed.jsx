@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Bell, Search, LogOut, CheckCircle, Flame, Clock } from 'lucide-react';
+import { Plus, Bell, Search, CheckCircle, Flame, Clock } from 'lucide-react';
 import RumorCard from '../components/RumorCard';
 import CreatePostModal from '../components/CreatePostModal';
 import { getRumors, getRumorScore, getStoredKeys, getReputation } from '../services/api';
 import './Feed.css';
 
-const Feed = ({ userId, onLogout }) => {
+const Feed = ({ userId }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('trending');
     const [rumors, setRumors] = useState([]);
@@ -142,9 +142,6 @@ const Feed = ({ userId, onLogout }) => {
                     <button className="icon-btn" title="Notifications">
                         <Bell size={20} />
                         <span className="notification-dot"></span>
-                    </button>
-                    <button className="icon-btn" title="Logout" onClick={onLogout}>
-                        <LogOut size={20} />
                     </button>
                 </div>
             </header>

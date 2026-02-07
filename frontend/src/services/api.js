@@ -28,8 +28,9 @@ export const storeKeys = (publicKey, privateKey) => {
 };
 
 export const clearKeys = () => {
-    localStorage.removeItem('publicKey');
-    localStorage.removeItem('privateKey');
+    // Intentionally disabled — keys are permanent per device
+    // to prevent users from creating multiple accounts
+    console.warn('Key clearing is disabled for account integrity');
 };
 
 // Proof of Work

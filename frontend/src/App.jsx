@@ -3,30 +3,23 @@ import LandingPage from './pages/LandingPage';
 import Feed from './pages/Feed';
 import './App.css';
 
-import { clearKeys } from './services/api';
+import { getStoredKeys } from './services/api';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for existing session
-    const storedUser = localStorage.getItem('acr_user_id');
-    if (storedUser) {
-      setUser(storedUser);
+    // Auto-login if keys exist — no way to "log out"
+    const keys = getStoredKeys();
+    if (keys) {
+      setUser(keys.publicKey);
     }
     setLoading(false);
   }, []);
 
   const handleLogin = (hashId) => {
-    localStorage.setItem('acr_user_id', hashId);
     setUser(hashId);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('acr_user_id');
-    clearKeys();
-    setUser(null);
   };
 
   if (loading) return null;
@@ -36,7 +29,7 @@ function App() {
       {!user ? (
         <LandingPage onLogin={handleLogin} />
       ) : (
-        <Feed userId={user} onLogout={handleLogout} />
+        <Feed userId={user} />
       )}
     </div>
   );

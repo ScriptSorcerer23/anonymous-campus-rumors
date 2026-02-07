@@ -1,49 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Fingerprint, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import PuzzleCaptcha from '../components/PuzzleCaptcha';
 import { generateKeyPair, computePoW, register, storeKeys, getStoredKeys } from '../services/api';
-import { encodeBase64, decodeBase64 } from 'tweetnacl-util';
-import nacl from 'tweetnacl';
 import './LandingPage.css';
 
 const LandingPage = ({ onLogin }) => {
     const [captchaVerified, setCaptchaVerified] = useState(false);
-    const [hashId, setHashId] = useState('');
-    const [showId, setShowId] = useState(false);
+    const [privateKeyDisplay, setPrivateKeyDisplay] = useState('');
+    const [showKey, setShowKey] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState('');
     const [progress, setProgress] = useState('');
+    const [registered, setRegistered] = useState(false);
+
+    // Auto-login immediately if keys already exist
+    useEffect(() => {
+        const keys = getStoredKeys();
+        if (keys) {
+            onLogin(keys.publicKey);
+        }
+    }, []);
 
     const handleVerify = () => {
         setCaptchaVerified(true);
-        // Check if user already has keys
+        // Double-check after captcha
         const keys = getStoredKeys();
         if (keys) {
-            // Auto-login if keys exist
             onLogin(keys.publicKey);
         }
     };
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        if (hashId.trim().length === 0) return;
-        
-        try {
-            // User is pasting their private key to login
-            // Derive public key from private key
-            const privKeyBytes = decodeBase64(hashId);
-            const keyPair = nacl.sign.keyPair.fromSecretKey(privKeyBytes);
-            const publicKey = encodeBase64(keyPair.publicKey);
-            
-            // Store both keys
-            storeKeys(publicKey, hashId);
-            onLogin(publicKey);
-        } catch (err) {
-            setError('Invalid private key format');
-        }
-    };
-
     const generateNewId = async () => {
+        // Block if keys already exist
+        const existingKeys = getStoredKeys();
+        if (existingKeys) {
+            onLogin(existingKeys.publicKey);
+            return;
+        }
+
         setIsGenerating(true);
         setError('');
         
@@ -60,17 +54,23 @@ const LandingPage = ({ onLogin }) => {
             setProgress('Registering with network...');
             await register(keys.publicKey, pow.nonce);
             
-            // Store keys
+            // Store keys permanently
             storeKeys(keys.publicKey, keys.privateKey);
-            setHashId(keys.privateKey);
-            setShowId(false); // Hidden by default - user must toggle to see
-            setProgress('✅ Registration complete! SAVE YOUR PRIVATE KEY BELOW!');
-            
-            setTimeout(() => setProgress(''), 2000);
+            setPrivateKeyDisplay(keys.privateKey);
+            setShowKey(false);
+            setRegistered(true);
+            setProgress('✅ Registration complete! SAVE YOUR PRIVATE KEY BELOW — then enter the feed.');
         } catch (err) {
             setError(err.message || 'Registration failed');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const enterFeed = () => {
+        const keys = getStoredKeys();
+        if (keys) {
+            onLogin(keys.publicKey);
         }
     };
 
@@ -97,54 +97,53 @@ const LandingPage = ({ onLogin }) => {
                         {progress && <p style={{color: 'var(--accent-cyan)', margin: '10px 0'}}>{progress}</p>}
                         {error && <p style={{color: 'var(--accent-pink)', margin: '10px 0'}}>❌ {error}</p>}
 
-                        <form onSubmit={handleLogin} className="login-form">
-                            <div className="input-group">
-                                <div className="icon-wrapper">
-                                    <Fingerprint size={20} color="var(--accent-cyan)" />
+                        {registered && privateKeyDisplay ? (
+                            <div className="key-display">
+                                <p style={{fontSize: '12px', color: 'var(--accent-pink)', fontWeight: 'bold', marginBottom: '8px'}}>
+                                    ⚠️ SAVE THIS KEY — it's your only way to recover your account on another device. You will NOT be shown this again.
+                                </p>
+                                <div className="input-group">
+                                    <div className="icon-wrapper">
+                                        <Fingerprint size={20} color="var(--accent-cyan)" />
+                                    </div>
+                                    <input
+                                        type={showKey ? "text" : "password"}
+                                        value={privateKeyDisplay}
+                                        readOnly
+                                        className="hash-input"
+                                        onClick={(e) => { e.target.select(); navigator.clipboard?.writeText(privateKeyDisplay); }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="toggle-visibility"
+                                        onClick={() => setShowKey(!showKey)}
+                                    >
+                                        {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
                                 </div>
-                                <input
-                                    type={showId ? "text" : "password"}
-                                    placeholder="Paste your PRIVATE KEY to login"
-                                    value={hashId}
-                                    onChange={(e) => setHashId(e.target.value)}
-                                    className="hash-input"
-                                />
+                                <p style={{fontSize: '11px', color: 'var(--text-muted)', marginTop: '5px'}}>
+                                    Click the key to copy it. Store it somewhere safe.
+                                </p>
+
                                 <button
-                                    type="button"
-                                    className="toggle-visibility"
-                                    onClick={() => setShowId(!showId)}
+                                    className="main-btn"
+                                    onClick={enterFeed}
+                                    style={{marginTop: '16px'}}
                                 >
-                                    {showId ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    Enter Feed <ArrowRight size={18} />
                                 </button>
                             </div>
-                            
-                            {hashId && (
-                                <p style={{fontSize: '11px', color: 'var(--accent-cyan)', marginTop: '5px'}}>
-                                    🔐 This is your PRIVATE KEY. Never share it!
-                                </p>
-                            )}
-
+                        ) : (
                             <button
-                                type="submit"
-                                className="main-btn"
-                                disabled={!hashId || isGenerating}
+                                className="secondary-btn"
+                                onClick={generateNewId}
+                                disabled={isGenerating}
+                                style={{marginTop: '10px'}}
                             >
-                                Connect <ArrowRight size={18} />
+                                <UserPlus size={18} style={{ marginRight: '8px' }} />
+                                {isGenerating ? progress || 'Generating...' : 'Generate New Identity'}
                             </button>
-                        </form>
-
-                        <div className="divider">
-                            <span>OR</span>
-                        </div>
-
-                        <button
-                            className="secondary-btn"
-                            onClick={generateNewId}
-                            disabled={isGenerating}
-                        >
-                            <UserPlus size={18} style={{ marginRight: '8px' }} />
-                            {isGenerating ? progress || 'Generating...' : 'Generate New Identity'}
-                        </button>
+                        )}
                     </div>
                 )}
             </div>
