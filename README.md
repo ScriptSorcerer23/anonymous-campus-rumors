@@ -1,3 +1,5 @@
+Live on: https://scriptsorcerer23.github.io/anonymous-campus-rumors/
+
 # Anonymous Campus Rumor Verification System
 
 ## 1. Project Overview
